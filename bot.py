@@ -2,61 +2,61 @@
 import json
 import asyncio
 import discord
+import time, sys
 from discord.ext import commands, tasks
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 
-print('running...')
-
 with open("config.json") as config_file:
     config = json.load(config_file)
 
 # Configure Discord bot
-intents = discord.Intents.default()
-intents.typing = False
-intents.presences = False
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-first_run = True
+bot = commands.Bot(
+    command_prefix="/",
+    case_insensitive=True,
+    intents=discord.Intents.all())
 
 def get_tweets(username):
-    print(f'getting tweets from @{username}')
+    print(f'reading tweets from @{username}...')
     options = Options()
     options.add_argument('-headless')
     browser = webdriver.Firefox(options=options)
     url = f'https://mobile.twitter.com/{username}'
-    print(url)
     browser.get(url)
+    time.sleep(5)  # Add a 5-second wait
     soup = BeautifulSoup(browser.page_source, 'html.parser')
     browser.quit()
 
-    print('soup...........')
     if not soup:
         logging.error('Failed to create BeautifulSoup object')
         return []
 
-    #tweets = soup.find_all('div', attrs={'data-testid': 'tweet'})
-    #tweets = soup.find_all('div', class_='tweet')
-    #tweets = soup.find_all('div', attrs={'data-testid': 'tweet'})
-    #tweets = soup.find_all('article', attrs={'data-testid': 'tweet'})
     tweets = soup.select('[data-testid="tweet"]')
-
-    print(tweets)
 
     tweet_data = []
     for tweet in tweets:
-        #tweet_id = tweet['data-tweet-id']
-        #img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
         tweet_id = tweet['aria-labelledby'].split()[0]
         img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
-        tweet_data.append({'id': tweet_id, 'img_urls': img_urls})
+        timestamp_element = tweet.find('time')
+        if timestamp_element:
+            timestamp = timestamp_element['datetime']
+        else:
+            timestamp = None
+        tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp})
 
     return tweet_data
 
 async def post_images(username, discord_user_id, channel_id, last_tweet_id):
-    global first_run
+    global bot
+    channel = bot.get_channel(channel_id)
+    if channel:
+        print(f'Channel found: {channel.name}')
+    else:
+        print(f'Channel not found for ID: {channel_id}')
+
+    # print(f'posting... {last_tweet_id}')
 
     tweets = get_tweets(username)
     new_last_tweet_id = last_tweet_id
@@ -67,24 +67,24 @@ async def post_images(username, discord_user_id, channel_id, last_tweet_id):
             break
 
         new_last_tweet_id = max(new_last_tweet_id, tweet['id'])
+        print(new_last_tweet_id)
         mention = f'<@{discord_user_id}>'
 
         for img_url in tweet['img_urls']:
             channel = bot.get_channel(channel_id)
-            if not first_run:
+            if last_tweet_id != 0:
                 await channel.send(f'{mention}\n{img_url}')
 
     return new_last_tweet_id
 
-@tasks.loop(minutes=5)
+@tasks.loop(seconds=60)
 async def check_twitter():
-    global first_run
-    print('checking twitter...', end='')
+    print('checking twitter... ', end='')
     for user in config["users"]:
         print(user)
         username = user["twitter_username"]
         discord_user_id = user["discord_user_id"]
-        channel_id = 1043730244747677857
+        channel_id = config['channel_id']
         last_tweet_id_key = f'{username}_last_tweet_id'
 
         last_tweet_id = bot.get_cog('Data').data.get(last_tweet_id_key, '0')
@@ -94,8 +94,6 @@ async def check_twitter():
 
         if new_last_tweet_id is None or new_last_tweet_id != last_tweet_id:
             bot.get_cog('Data').data[last_tweet_id_key] = new_last_tweet_id
-
-    first_run = False
 
 @bot.event
 async def on_ready():
