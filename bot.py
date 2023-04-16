@@ -15,7 +15,8 @@ processed_tweets = set()
 processed_steam = set()
 
 # first run
-first_run = True
+first_run_twitter = True
+first_run_steam = True
 
 # configs for paring twitter/discord users
 with open("config-twitter.json") as config_file:
@@ -107,6 +108,8 @@ def get_steam_uploads(username):
     steam_data = []
     i = 0
 
+    # print(f'steam screenshots: {len(profile_media_items)}')
+
     for item in profile_media_items:
 
         # print(item)
@@ -150,66 +153,20 @@ def get_steam_uploads(username):
         # print(actual_media_ctn)
         # print(image_link)
 
-
         steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time()})
-            
-
-
-
-
-        
-        ###################
-        # get IMAGE URL
-        # img_wall_item = item.find(attrs={'class': 'imgWallItem'})
-
-        # # Get the style attribute
-        # style = img_wall_item.get('style')
-
-        # # Extract the URL from the style attribute using a regular expression
-        # url_match = re.search(r"url\('(.+?)'\)", style)
-
-        # if url_match:
-        #     background_image_url = url_match.group(1)
-        #     background_image_url += '?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false'
-
-        #     print(background_image_url)
-
-        ###################
-        # get PUBLLISHED FILE ID FROM STEAM API
-        # published_file_id = item.get('data-publishedfileid')
-        # print(published_file_id)
-
-        # url = 'https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/'
-
-        # params = {
-        #     'key': '783041FE166A0240714001AEBEBEDF7C',
-        #     'itemcount': 1,
-        #     'publishedfileids[0]': published_file_id
-        # }
-
-        # response = requests.post(url, data=params)
-        # response_data = response.json()
-
-        # print(response_data)
-
-
 
         # break
         i += 1
         # print(i)
-        if i>= 2:
+        if i>= 1:
             break
-
-
 
     browser.quit()
     return steam_data
 
-    # return profile_media_items
-
 # post image to discord
 async def post_images(username, discord_user_id, channel_id, is_steam = False):
-    global bot, first_run, processed_tweets
+    global bot, first_run_twitter, first_run_steam, processed_tweets
 
     # search for upload discord channel
     channel = bot.get_channel(channel_id)
@@ -223,15 +180,11 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
     else:
         posts = get_tweets(username)
 
-    first_run = False
-
-    print('~~~~~~~')
-
     # for each tweet
     for tweet in posts:
 
         # if first run, mark latest, do not re-upload to discord
-        if first_run:
+        if (first_run_twitter and not is_steam) or (first_run_steam and is_steam):
             print(f"first run, adding to processed: {tweet['id']}")
             processed_tweets.add(tweet['id'])        
             continue
@@ -261,55 +214,67 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
             # download image            
             try:
                 response = requests.get(img_url)
-                print(response)
                 if response.status_code == 200:
                     
                     # send to discord channel
                     file = discord.File(io.BytesIO(response.content), filename="image.jpg")
-                    if not first_run:
+                    if (not is_steam and not first_run_twitter) or (is_steam and not first_run_steam):
                         await channel.send(f'From: {mention}', file=file)
                     else:
-                        print('first run, setting latest..')
+                        if is_steam:
+                            print('first run, setting latest of steam..')
+                        else:
+                            print('first run, setting latest of twitter..')
             except Exception as e:
                 # handle the exception gracefully
                 print("An exception occurred:", e)         
 
-            print('done downloading...')
+            print('sent to discord...')
+
+    # if is_steam:
+    #     first_run_steam = False
+    # else:
+    #     first_run_twitter = False
 
 # check twitter on timer loop
 @tasks.loop(seconds=60)
 async def check_twitter():
-    print('checking twitter... ', end='')
+    global first_run_twitter
 
     # for each user in config
     for user in twitter_config["users"]:
+        print('~~~~~~~')
+        print('checking twitter... ', end='')
         print(user)
         username = user["twitter_username"]
         discord_user_id = user["discord_user_id"]
         channel_id = twitter_config['channel_id']
 
         await post_images(username, discord_user_id, channel_id, False)
+    first_run_twitter = False
     print('done.')
 
 @tasks.loop(seconds=60)
 async def check_steam():
-    print('checking steam... ', end='')
+    global first_run_steam
 
     # for each user in config
     for user in steam_config["users"]:
+        print('~~~~~~~')
+        print('checking steam... ', end='')
         print(user)
         username = user["steam_username"]
         discord_user_id = user["discord_user_id"]
         channel_id = twitter_config['channel_id']
 
         await post_images(username, discord_user_id, channel_id, True)
+    first_run_steam = False
     print('done.')
 
 @bot.event
 async def on_ready():
-    global first_run 
     print(f'Logged in as {bot.user.name}')
-    # check_twitter.start()
+    check_twitter.start()
     check_steam.start()
 
 bot.run(twitter_config['discord_token'])
