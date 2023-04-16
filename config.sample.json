@@ -1,0 +1,11 @@
+{
+    "users": [
+        {
+            "twitter_username": "",
+            "discord_user_id": 1234567890
+        }
+    ],
+    "discord_token": "xyzxyzxyzxyzxyz",
+    "channel_id": 1234567890,
+    "guild_id": 1234567890
+}
