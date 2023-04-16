@@ -1,7 +1,21 @@
+# Use the official Python image as the base image
 FROM python:3.8
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    unzip \
+    firefox-esr
 
 # Set the working directory to /app
 WORKDIR /app
+
+# Download and install Geckodriver
+RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz && \
+    tar -xvzf geckodriver-v0.30.0-linux64.tar.gz && \
+    chmod +x geckodriver && \
+    mv geckodriver /usr/local/bin
 
 # Copy the current directory contents into the container at /app
 COPY . /app
@@ -11,6 +25,10 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 
 # Make port 80 available to the world outside this container
 EXPOSE 80
+
+# Set environment variables
+ENV DISPLAY=:99
+ENV MOZ_HEADLESS=1
 
 # Run bot.py when the container launches
 CMD ["python", "bot.py"]
