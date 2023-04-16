@@ -250,8 +250,19 @@ async def check_steam():
 
 @bot.event
 async def on_ready():
+    await bot.change_presence(status=discord.Status.online)
     print(f'Logged in as {bot.user.name}')
-    check_twitter.start()
-    check_steam.start()
+    try:
+        check_twitter.start()
+    except RuntimeError as e:
+        print('already running twitter task')
+    except Exception as e:
+        print(e)
+    try:
+        check_steam.start()
+    except RuntimeError as e:
+        print('already running steam task')
+    except Exception as e:
+        print(e)
 
 bot.run(twitter_config['discord_token'])
