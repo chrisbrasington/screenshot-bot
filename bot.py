@@ -1,10 +1,12 @@
+#!/usr/bin/env python3
 import json
-import re
 import asyncio
 import discord
 import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands, tasks
+
+print('running...')
 
 with open("config.json") as config_file:
     config = json.load(config_file)
@@ -20,7 +22,7 @@ first_run = True
 def get_tweets(username):
     url = f'https://twitter.com/{username}'
     response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
+    soup = BeautifulSoup(response.text, 'html5lib')
     tweets = soup.find_all('div', attrs={'data-testid': 'tweet'})
 
     tweet_data = []
@@ -47,7 +49,7 @@ async def post_images(username, discord_user_id, channel_id, last_tweet_id):
             channel = bot.get_channel(channel_id)
             if not first_run:
                 await channel.send(f'{mention}\n{img_url}')
-                
+
     return new_last_tweet_id
 
 @tasks.loop(minutes=5)
