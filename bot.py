@@ -2,9 +2,10 @@
 import json
 import asyncio
 import discord
-import requests
-from bs4 import BeautifulSoup
 from discord.ext import commands, tasks
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 
 print('running...')
 
@@ -20,10 +21,21 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 first_run = True
 
 def get_tweets(username):
-    url = f'https://twitter.com/{username}'
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html5lib')
+    print(f'getting tweets from @{username}')
+    options = Options()
+    # options.add_argument('-headless')
+    browser = webdriver.Firefox(options=options)
+    url = f'https://mobile.twitter.com/{username}'
+    print(url)
+    browser.get(url)
+    soup = BeautifulSoup(browser.page_source, 'html.parser')
+    browser.quit()
+
+    print('soup...........')
+
     tweets = soup.find_all('div', attrs={'data-testid': 'tweet'})
+
+    print(tweets)
 
     tweet_data = []
     for tweet in tweets:
@@ -35,10 +47,14 @@ def get_tweets(username):
 
 async def post_images(username, discord_user_id, channel_id, last_tweet_id):
     global first_run
+
     tweets = get_tweets(username)
     new_last_tweet_id = last_tweet_id
 
+    print(tweets)
+
     for tweet in tweets:
+        print(tweet)
         if tweet['id'] == last_tweet_id:
             break
 
@@ -55,18 +71,20 @@ async def post_images(username, discord_user_id, channel_id, last_tweet_id):
 @tasks.loop(minutes=5)
 async def check_twitter():
     global first_run
+    print('checking twitter...', end='')
     for user in config["users"]:
+        print(user)
         username = user["twitter_username"]
         discord_user_id = user["discord_user_id"]
         channel_id = 1043730244747677857
         last_tweet_id_key = f'{username}_last_tweet_id'
 
         last_tweet_id = bot.get_cog('Data').data.get(last_tweet_id_key, '0')
+        new_last_tweet_id = None
 
-        if not first_run:
-            new_last_tweet_id = await post_images(username, discord_user_id, channel_id, last_tweet_id)
+        new_last_tweet_id = await post_images(username, discord_user_id, channel_id, last_tweet_id)
 
-        if new_last_tweet_id != last_tweet_id:
+        if new_last_tweet_id is None or new_last_tweet_id != last_tweet_id:
             bot.get_cog('Data').data[last_tweet_id_key] = new_last_tweet_id
 
     first_run = False
