@@ -10,9 +10,8 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 
-# processed tweets
-processed_tweets = set()
-processed_steam = set()
+# processed posts (steam images / tweets)
+processed_posts = set()
 
 # first run
 first_run_twitter = True
@@ -149,7 +148,7 @@ def get_steam_uploads(username):
 
 # post image to discord
 async def post_images(username, discord_user_id, channel_id, is_steam = False):
-    global bot, first_run_twitter, first_run_steam, processed_tweets
+    global bot, first_run_twitter, first_run_steam, processed_posts
 
     # search for upload discord channel
     channel = bot.get_channel(channel_id)
@@ -169,17 +168,17 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
         # if first run, mark latest, do not re-upload to discord
         if (first_run_twitter and not is_steam) or (first_run_steam and is_steam):
             print(f"first run, adding to processed: {post['id']}")
-            processed_tweets.add(post['id'])        
+            processed_posts.add(post['id'])        
             continue
 
         # already processed
-        if post['id'] in processed_tweets:
+        if post['id'] in processed_posts:
             print(f"already processed: {post['id']}")
             continue
 
         # not already processed, add
         print(f'new: {post}')
-        processed_tweets.add(post['id'])
+        processed_posts.add(post['id'])
 
         # mention
         mention = f'<@{discord_user_id}>'
