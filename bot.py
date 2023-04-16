@@ -6,6 +6,7 @@ from discord.ext import commands, tasks
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.by import By
 
 print('running...')
 
@@ -32,14 +33,23 @@ def get_tweets(username):
     browser.quit()
 
     print('soup...........')
+    if not soup:
+        logging.error('Failed to create BeautifulSoup object')
+        return []
 
-    tweets = soup.find_all('div', attrs={'data-testid': 'tweet'})
+    #tweets = soup.find_all('div', attrs={'data-testid': 'tweet'})
+    #tweets = soup.find_all('div', class_='tweet')
+    #tweets = soup.find_all('div', attrs={'data-testid': 'tweet'})
+    #tweets = soup.find_all('article', attrs={'data-testid': 'tweet'})
+    tweets = soup.select('[data-testid="tweet"]')
 
     print(tweets)
 
     tweet_data = []
     for tweet in tweets:
-        tweet_id = tweet['data-tweet-id']
+        #tweet_id = tweet['data-tweet-id']
+        #img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
+        tweet_id = tweet['aria-labelledby'].split()[0]
         img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
         tweet_data.append({'id': tweet_id, 'img_urls': img_urls})
 
@@ -50,8 +60,6 @@ async def post_images(username, discord_user_id, channel_id, last_tweet_id):
 
     tweets = get_tweets(username)
     new_last_tweet_id = last_tweet_id
-
-    print(tweets)
 
     for tweet in tweets:
         print(tweet)
