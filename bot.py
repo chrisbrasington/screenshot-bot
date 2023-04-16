@@ -112,24 +112,7 @@ def get_steam_uploads(username):
 
     for item in profile_media_items:
 
-        # print(item)
         href = item.get('href')
-        # print(href)
-
-        # # Load the page from the href attribute
-        # detail_page_response = browser.get(href)
-        # time.sleep(5)
-        # print(detail_page_response)
-        # detail_page_soup = BeautifulSoup(detail_page_response.page_source, "html.parser")
-
-        # # Find the element with the class 'actualmediactn' and get the href attribute of the child 'a' tag
-        # actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
-        # image_link = actual_media_ctn.find('a').get('href')
-
-        # print(detail_page_soup)
-        # print(actual_media_ctn)
-        # print(image_link)
-
 
         # Parse the URL to get the query string
         parsed_url = urllib.parse.urlparse(href)
@@ -181,28 +164,28 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
         posts = get_tweets(username)
 
     # for each tweet
-    for tweet in posts:
+    for post in posts:
 
         # if first run, mark latest, do not re-upload to discord
         if (first_run_twitter and not is_steam) or (first_run_steam and is_steam):
-            print(f"first run, adding to processed: {tweet['id']}")
-            processed_tweets.add(tweet['id'])        
+            print(f"first run, adding to processed: {post['id']}")
+            processed_tweets.add(post['id'])        
             continue
 
         # already processed
-        if tweet['id'] in processed_tweets:
-            print(f"already processed: {tweet['id']}")
+        if post['id'] in processed_tweets:
+            print(f"already processed: {post['id']}")
             continue
 
         # not already processed, add
-        print(f'new: {tweet}')
-        processed_tweets.add(tweet['id'])
+        print(f'new: {post}')
+        processed_tweets.add(post['id'])
 
         # mention
         mention = f'<@{discord_user_id}>'
 
         # for each image
-        for img_url in tweet['img_urls']:
+        for img_url in post['img_urls']:
 
             print(img_url)
 
@@ -230,11 +213,6 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
                 print("An exception occurred:", e)         
 
             print('sent to discord...')
-
-    # if is_steam:
-    #     first_run_steam = False
-    # else:
-    #     first_run_twitter = False
 
 # check twitter on timer loop
 @tasks.loop(seconds=60)
