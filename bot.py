@@ -41,6 +41,13 @@ def get_tweets(username):
 
     tweet_data = []
     for tweet in tweets:
+
+        is_video = tweet.select('[data-testid="videoComponent"]')
+
+        if len(is_video) > 0:
+            print('skipping video')
+            continue
+
         tweet_id = tweet['aria-labelledby'].split()[0]
         img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
         timestamp_element = tweet.find('time')
@@ -49,6 +56,8 @@ def get_tweets(username):
         else:
             timestamp = None
         tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp})
+
+        break # only one
 
     return tweet_data
 
@@ -89,11 +98,9 @@ async def post_images(username, discord_user_id, channel_id):
                 else:
                     print('first run, setting latest..')
 
-        break
-
     first_run = False
 
-@tasks.loop(seconds=20)
+@tasks.loop(seconds=60)
 async def check_twitter():
     global first_run
     print('checking twitter... ', end='')
