@@ -23,7 +23,7 @@ first_run = True
 def get_tweets(username):
     print(f'getting tweets from @{username}')
     options = Options()
-    # options.add_argument('-headless')
+    options.add_argument('-headless')
     browser = webdriver.Firefox(options=options)
     url = f'https://mobile.twitter.com/{username}'
     print(url)
