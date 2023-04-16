@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import json
 import asyncio
-import discord
-import time, sys
+import discord, requests
+import time, sys, io
 from discord.ext import commands, tasks
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -56,7 +56,7 @@ async def post_images(username, discord_user_id, channel_id, last_tweet_id):
     else:
         print(f'Channel not found for ID: {channel_id}')
 
-    # print(f'posting... {last_tweet_id}')
+    first_run = last_tweet_id == '0'
 
     tweets = get_tweets(username)
     new_last_tweet_id = last_tweet_id
@@ -72,12 +72,20 @@ async def post_images(username, discord_user_id, channel_id, last_tweet_id):
 
         for img_url in tweet['img_urls']:
             channel = bot.get_channel(channel_id)
-            if last_tweet_id != 0:
-                await channel.send(f'{mention}\n{img_url}')
+            response = requests.get(img_url)
+            if response.status_code == 200:
+                
+                file = discord.File(io.BytesIO(response.content), filename="image.jpg")
+                if not first_run:
+                    await channel.send(f'From: {mention}', file=file)
+                else:
+                    print('first run, setting latest..')
+
+        break
 
     return new_last_tweet_id
 
-@tasks.loop(seconds=60)
+@tasks.loop(seconds=20)
 async def check_twitter():
     print('checking twitter... ', end='')
     for user in config["users"]:
