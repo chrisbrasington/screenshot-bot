@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import json
-import asyncio
+import asyncio, aiohttp
 import discord, requests
-import time, sys, io, re
+import time, sys, io, re, time, urllib.parse
+import urllib.parse
 from discord.ext import commands, tasks
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -67,13 +68,14 @@ def get_tweets(username):
             continue
 
         # get metadata
-        tweet_id = tweet['aria-labelledby'].split()[0]
+        # tweet_id = tweet['aria-labelledby'].split()[0]
         img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
         timestamp_element = tweet.find('time')
+        timestamp = None
         if timestamp_element:
             timestamp = timestamp_element['datetime']
-        else:
-            timestamp = None
+            
+        tweet_id = timestamp
 
         # append to array tweet information, mostly image url array and timestamp as unique identifier
         tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp})
@@ -102,17 +104,44 @@ def get_steam_uploads(username):
     # filter page elements for array of tweets
     profile_media_items = soup.find_all(attrs={'class': 'profile_media_item'})
 
+    steam_data = []
+    i = 0
+
     for item in profile_media_items:
 
+        # print(item)
         href = item.get('href')
-        print(href)
+        # print(href)
 
-        # Load the page from the href attribute
+        # # Load the page from the href attribute
+        # detail_page_response = browser.get(href)
+        # time.sleep(5)
+        # print(detail_page_response)
+        # detail_page_soup = BeautifulSoup(detail_page_response.page_source, "html.parser")
+
+        # # Find the element with the class 'actualmediactn' and get the href attribute of the child 'a' tag
+        # actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
+        # image_link = actual_media_ctn.find('a').get('href')
+
+        # print(detail_page_soup)
+        # print(actual_media_ctn)
+        # print(image_link)
+
+
+        # Parse the URL to get the query string
+        parsed_url = urllib.parse.urlparse(href)
+
+        # Parse the query string to get the id parameter value
+        query_parameters = urllib.parse.parse_qs(parsed_url.query)
+        id_value = query_parameters.get('id', None)
+
+        if not id_value:
+            id_value = 'unknown'
+            print("ID not found in URL")
+
         detail_page_response = browser.get(href)
-        time.sleep(5)
-        print(detail_page_response)
-        detail_page_soup = BeautifulSoup(detail_page_response.page_source, "html.parser")
-
+        # time.sleep(5)
+        detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
         # Find the element with the class 'actualmediactn' and get the href attribute of the child 'a' tag
         actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
         image_link = actual_media_ctn.find('a').get('href')
@@ -120,6 +149,9 @@ def get_steam_uploads(username):
         # print(detail_page_soup)
         # print(actual_media_ctn)
         # print(image_link)
+
+
+        steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time()})
             
 
 
@@ -162,12 +194,16 @@ def get_steam_uploads(username):
 
 
 
-        break
+        # break
+        i += 1
+        # print(i)
+        if i>= 2:
+            break
 
 
 
     browser.quit()
-    return []
+    return steam_data
 
     # return profile_media_items
 
@@ -177,6 +213,7 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
 
     # search for upload discord channel
     channel = bot.get_channel(channel_id)
+    # await channel.send('test')
     if not channel:
         print(f'Channel not found for ID: {channel_id}')
 
@@ -186,23 +223,27 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
     else:
         posts = get_tweets(username)
 
+    first_run = False
+
+    print('~~~~~~~')
+
     # for each tweet
     for tweet in posts:
 
         # if first run, mark latest, do not re-upload to discord
         if first_run:
-            print(f"first run, adding to processed: {tweet['timestamp']}")
-            processed_tweets.add(tweet['timestamp'])        
+            print(f"first run, adding to processed: {tweet['id']}")
+            processed_tweets.add(tweet['id'])        
             continue
 
         # already processed
-        if tweet['timestamp'] in processed_tweets:
-            print(f"already processed: {tweet['timestamp']}")
+        if tweet['id'] in processed_tweets:
+            print(f"already processed: {tweet['id']}")
             continue
 
         # not already processed, add
         print(f'new: {tweet}')
-        processed_tweets.add(tweet['timestamp'])
+        processed_tweets.add(tweet['id'])
 
         # mention
         mention = f'<@{discord_user_id}>'
@@ -210,21 +251,30 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
         # for each image
         for img_url in tweet['img_urls']:
 
+            print(img_url)
+
             # upload channel
             channel = bot.get_channel(channel_id)
 
-            # download image            
-            response = requests.get(img_url)
-            if response.status_code == 200:
-                
-                # send to discord channel
-                file = discord.File(io.BytesIO(response.content), filename="image.jpg")
-                if not first_run:
-                    await channel.send(f'From: {mention}', file=file)
-                else:
-                    print('first run, setting latest..')
+            print('downloading...')
 
-    
+            # download image            
+            try:
+                response = requests.get(img_url)
+                print(response)
+                if response.status_code == 200:
+                    
+                    # send to discord channel
+                    file = discord.File(io.BytesIO(response.content), filename="image.jpg")
+                    if not first_run:
+                        await channel.send(f'From: {mention}', file=file)
+                    else:
+                        print('first run, setting latest..')
+            except Exception as e:
+                # handle the exception gracefully
+                print("An exception occurred:", e)         
+
+            print('done downloading...')
 
 # check twitter on timer loop
 @tasks.loop(seconds=60)
