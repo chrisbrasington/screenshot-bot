@@ -9,6 +9,10 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 
+processed_tweets = set()
+
+first_run = True
+
 with open("config.json") as config_file:
     config = json.load(config_file)
 
@@ -48,26 +52,30 @@ def get_tweets(username):
 
     return tweet_data
 
-async def post_images(username, discord_user_id, channel_id, last_tweet_id):
-    global bot
+async def post_images(username, discord_user_id, channel_id):
+    global bot, first_run, processed_tweets
     channel = bot.get_channel(channel_id)
     if channel:
         print(f'Channel found: {channel.name}')
     else:
         print(f'Channel not found for ID: {channel_id}')
 
-    first_run = last_tweet_id == '0'
-
     tweets = get_tweets(username)
-    new_last_tweet_id = last_tweet_id
 
     for tweet in tweets:
-        print(tweet)
-        if tweet['id'] == last_tweet_id:
-            break
 
-        new_last_tweet_id = max(new_last_tweet_id, tweet['id'])
-        print(new_last_tweet_id)
+        if first_run:
+            print(f"first run, adding to processed: {tweet['timestamp']}")
+            processed_tweets.add(tweet['timestamp'])        
+            continue
+
+        if tweet['timestamp'] in processed_tweets:
+            print(f"already processed: {tweet['timestamp']}")
+            continue
+
+        print(f'new: {tweet}')
+        processed_tweets.add(tweet['id'])
+
         mention = f'<@{discord_user_id}>'
 
         for img_url in tweet['img_urls']:
@@ -83,35 +91,25 @@ async def post_images(username, discord_user_id, channel_id, last_tweet_id):
 
         break
 
-    return new_last_tweet_id
+    first_run = False
 
 @tasks.loop(seconds=20)
 async def check_twitter():
+    global first_run
     print('checking twitter... ', end='')
     for user in config["users"]:
         print(user)
         username = user["twitter_username"]
         discord_user_id = user["discord_user_id"]
         channel_id = config['channel_id']
-        last_tweet_id_key = f'{username}_last_tweet_id'
 
-        last_tweet_id = bot.get_cog('Data').data.get(last_tweet_id_key, '0')
-        new_last_tweet_id = None
-
-        new_last_tweet_id = await post_images(username, discord_user_id, channel_id, last_tweet_id)
-
-        if new_last_tweet_id is None or new_last_tweet_id != last_tweet_id:
-            bot.get_cog('Data').data[last_tweet_id_key] = new_last_tweet_id
+        await post_images(username, discord_user_id, channel_id)
+    print('done.')
 
 @bot.event
 async def on_ready():
+    global first_run 
     print(f'Logged in as {bot.user.name}')
     check_twitter.start()
 
-class Data(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.data = {}
-
-bot.add_cog(Data(bot))
 bot.run(config['discord_token'])
