@@ -83,7 +83,7 @@ async def post_images(username, discord_user_id, channel_id):
             continue
 
         print(f'new: {tweet}')
-        processed_tweets.add(tweet['id'])
+        processed_tweets.add(tweet['timestamp'])
 
         mention = f'<@{discord_user_id}>'
 
