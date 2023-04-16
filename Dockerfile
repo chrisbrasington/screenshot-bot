@@ -2,11 +2,11 @@
 FROM python:3.8
 
 # Install system dependencies
-RUN wget \
+RUN apt-get install -y \
+    wget \
     curl \
     unzip \
     firefox-esr
-# apt-get update && apt-get install -y \
 
 
 # Set the working directory to /app
