@@ -1,12 +1,15 @@
 # Screenshot Bot
 
-Screenshot Bot is a Discord bot that periodically checks specified Twitter accounts for new image tweets, and posts them in a designated Discord channel.
+Screenshot Bot is a Discord bot that periodically checks specified Steam accounts or Twitter accounts for new image tweets, and posts them in a designated Discord channel.
 
 ![](.img/sample1.png)
+
+![](.img/sample2.png)
 
 ## Features
 
 - Monitor multiple Twitter accounts
+- Monitor multiple Steam accounts
 - Post new image tweets as messages in a Discord channel
 - Automatically restarts in case of failure
 
@@ -32,8 +35,9 @@ Screenshot Bot is a Discord bot that periodically checks specified Twitter accou
 
 pip install -r requirements.txt
 
-3. Create a config.json file in the project directory with the following structure:
+3. Create a config-twitter.json and config-steam.json file in the project directory with the following structure:
 
+config-twitter.json:
 ```json
 {
   "discord_token": "your_discord_bot_token",
@@ -44,6 +48,25 @@ pip install -r requirements.txt
       "discord_user_id": your_discord_user_id
     }
   ]
+}
+```
+
+config-steam.json:
+```json
+{
+    "users": [
+        {
+            "steam_username": "raylinth",
+            "discord_user_id": 11111111111111111
+        },
+        {
+            "steam_username": "Zzzzzzz",
+            "discord_user_id": 22222222222222222
+        }
+    ],
+    "discord_token": "",
+    "channel_id": 333,
+    "guild_id": 444
 }
 ```
 
