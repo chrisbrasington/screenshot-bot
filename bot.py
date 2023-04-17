@@ -34,117 +34,130 @@ bot = commands.Bot(
 # get tweets
 def get_tweets(username):
 
-    print(f'reading tweets from @{username}...')
+    try:
+        print(f'reading tweets from @{username}...')
 
-    # with selenium, read from firefox headless
-    options = Options()
-    options.add_argument('-headless')
-    browser = webdriver.Firefox(options=options)
-    url = f'https://mobile.twitter.com/{username}'
-    browser.get(url)
-    time.sleep(5)  # Add a 5-second wait for page load
+        # with selenium, read from firefox headless
+        options = Options()
+        options.add_argument('-headless')
+        browser = webdriver.Firefox(options=options)
+        url = f'https://mobile.twitter.com/{username}'
+        browser.get(url)
+        time.sleep(5)  # Add a 5-second wait for page load
 
-    # parse html
-    soup = BeautifulSoup(browser.page_source, 'html.parser')
-    browser.quit()
+        # parse html
+        soup = BeautifulSoup(browser.page_source, 'html.parser')
+        browser.quit()
 
-    if not soup:
-        logging.error('Failed to create BeautifulSoup object')
+        if not soup:
+            logging.error('Failed to create BeautifulSoup object')
+            return []
+
+        # filter page elements for array of tweets
+        tweets = soup.select('[data-testid="tweet"]')
+
+        tweet_data = []
+
+        # for each tweet
+        for tweet in tweets:
+
+            # if it's video, skip atm (haven't written downloader)
+            is_video = tweet.select('[data-testid="videoComponent"]')
+
+            if len(is_video) > 0:
+                print('skipping video')
+                continue
+
+            # get metadata
+            # tweet_id = tweet['aria-labelledby'].split()[0]
+            img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
+            timestamp_element = tweet.find('time')
+            timestamp = None
+            if timestamp_element:
+                timestamp = timestamp_element['datetime']
+                
+            tweet_id = timestamp
+
+            # append to array tweet information, mostly image url array and timestamp as unique identifier
+            tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp})
+
+            break # only one
+
+        return tweet_data
+    except Exception as e:
+        print(e)
         return []
-
-    # filter page elements for array of tweets
-    tweets = soup.select('[data-testid="tweet"]')
-
-    tweet_data = []
-
-    # for each tweet
-    for tweet in tweets:
-
-        # if it's video, skip atm (haven't written downloader)
-        is_video = tweet.select('[data-testid="videoComponent"]')
-
-        if len(is_video) > 0:
-            print('skipping video')
-            continue
-
-        # get metadata
-        # tweet_id = tweet['aria-labelledby'].split()[0]
-        img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
-        timestamp_element = tweet.find('time')
-        timestamp = None
-        if timestamp_element:
-            timestamp = timestamp_element['datetime']
-            
-        tweet_id = timestamp
-
-        # append to array tweet information, mostly image url array and timestamp as unique identifier
-        tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp})
-
-        break # only one
-
-    return tweet_data
 
 def get_steam_uploads(username):
 
-    # with selenium, read from firefox headless
-    options = Options()
-    options.add_argument('-headless')
-    browser = webdriver.Firefox(options=options)
-    url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
-    browser.get(url)
-    time.sleep(5)  # Add a 5-second wait for page load
+    try:
 
-    # parse html
-    soup = BeautifulSoup(browser.page_source, 'html.parser')
-    
-    if not soup:
-        logging.error('Failed to create BeautifulSoup object')
+        # with selenium, read from firefox headless
+        options = Options()
+        options.add_argument('-headless')
+        browser = webdriver.Firefox(options=options)
+        url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
+        browser.get(url)
+        time.sleep(5)  # Add a 5-second wait for page load
+
+        # parse html
+        soup = BeautifulSoup(browser.page_source, 'html.parser')
+        
+        if not soup:
+            logging.error('Failed to create BeautifulSoup object')
+            return []
+
+        # filter page elements for array of tweets
+        profile_media_items = soup.find_all(attrs={'class': 'profile_media_item'})
+
+        steam_data = []
+        i = 0
+
+        # print(f'steam screenshots: {len(profile_media_items)}')
+
+        for item in profile_media_items:
+
+            href = item.get('href')
+
+            # Parse the URL to get the query string
+            parsed_url = urllib.parse.urlparse(href)
+
+            # Parse the query string to get the id parameter value
+            query_parameters = urllib.parse.parse_qs(parsed_url.query)
+            id_value = query_parameters.get('id', None)
+
+            if not id_value:
+                id_value = 'unknown'
+                print("ID not found in URL")
+
+            detail_page_response = browser.get(href)
+            # time.sleep(5)
+            detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
+            # Find the element with the class 'actualmediactn' and get the href attribute of the child 'a' tag
+            actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
+            image_link = actual_media_ctn.find('a').get('href')
+
+            # print(detail_page_soup)
+            # print(actual_media_ctn)
+            # print(image_link)
+
+            # Find the div element with class apphub_AppName and get its text
+            title = detail_page_soup.find(attrs={'class': 'apphub_AppName'}).text
+            print(title)
+
+            steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time(), 'title': title})
+
+            # break
+            i += 1
+            # print(i)
+            if i>= 1:
+                break
+
+        browser.quit()
+        return steam_data
+    except Exception as e:
+        print(e)
         return []
-
-    # filter page elements for array of tweets
-    profile_media_items = soup.find_all(attrs={'class': 'profile_media_item'})
-
-    steam_data = []
-    i = 0
-
-    # print(f'steam screenshots: {len(profile_media_items)}')
-
-    for item in profile_media_items:
-
-        href = item.get('href')
-
-        # Parse the URL to get the query string
-        parsed_url = urllib.parse.urlparse(href)
-
-        # Parse the query string to get the id parameter value
-        query_parameters = urllib.parse.parse_qs(parsed_url.query)
-        id_value = query_parameters.get('id', None)
-
-        if not id_value:
-            id_value = 'unknown'
-            print("ID not found in URL")
-
-        detail_page_response = browser.get(href)
-        # time.sleep(5)
-        detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
-        # Find the element with the class 'actualmediactn' and get the href attribute of the child 'a' tag
-        actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
-        image_link = actual_media_ctn.find('a').get('href')
-
-        # print(detail_page_soup)
-        # print(actual_media_ctn)
-        # print(image_link)
-
-        steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time()})
-
-        # break
-        i += 1
-        # print(i)
-        if i>= 1:
-            break
-
-    browser.quit()
-    return steam_data
 
 # post image to discord
 async def post_images(username, discord_user_id, channel_id, is_steam = False):
@@ -201,7 +214,13 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
                     # send to discord channel
                     file = discord.File(io.BytesIO(response.content), filename="image.jpg")
                     if (not is_steam and not first_run_twitter) or (is_steam and not first_run_steam):
-                        await channel.send(f'From: {mention}', file=file)
+
+                        title = post['title']
+
+                        if title is not None:
+                            await channel.send(f'From: {mention} playing {title}', file=file)
+                        else:
+                            await channel.send(f'From: {mention}', file=file)
                     else:
                         if is_steam:
                             print('first run, setting latest of steam..')
