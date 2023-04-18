@@ -126,7 +126,8 @@ def get_tweets(username):
         return tweet_data
     except Exception as e:
         print(e)
-        quit_driver(browser)
+        if browser is not None:
+            quit_driver(browser)
         return []
 
 def get_steam_uploads(username):
@@ -196,7 +197,8 @@ def get_steam_uploads(username):
         return steam_data
     except Exception as e:
         print(e)
-        quit_driver(browser)
+        if browser is not None:
+            quit_driver(browser)
         return []
 
 # post image to discord
