@@ -238,7 +238,7 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
             print('sent to discord...')
 
 # check twitter on timer loop
-@tasks.loop(seconds=60)
+@tasks.loop(minutes=5)
 async def check_twitter():
     global first_run_twitter
 
@@ -255,7 +255,8 @@ async def check_twitter():
     first_run_twitter = False
     print('done.')
 
-@tasks.loop(seconds=60)
+
+@tasks.loop(minutes=5)
 async def check_steam():
     global first_run_steam
 
