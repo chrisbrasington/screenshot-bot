@@ -1,13 +1,13 @@
 version: '3'
 services:
-  problematic-image:
+  screenshot-bot:
     image: screenshot-bot:latest
-    ports:
-      - "80:80"
+    # ports:
+    #   - "80:80"
     networks:
       slow-net:
         aliases:
-          - screenshot-bot
+          - screenshot-bot-slow-net
     environment:
       - TC_QDISC=netem
       - TC_DELAY=50ms
