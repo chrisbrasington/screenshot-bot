@@ -17,6 +17,8 @@ processed_posts = set()
 first_run_twitter = True
 first_run_steam = True
 
+sleep_duration_seconds = 20
+
 # configs for paring twitter/discord users
 with open("config-twitter.json") as config_file:
     twitter_config = json.load(config_file)
@@ -44,7 +46,7 @@ def get_tweets(username):
 
         url = f'https://mobile.twitter.com/{username}'
         browser.get(url)
-        time.sleep(5)  # Add a 5-second wait for page load
+        time.sleep(sleep_duration_seconds)  # wait for page load
 
         # parse html
         soup = BeautifulSoup(browser.page_source, 'html.parser')
@@ -101,7 +103,7 @@ def get_steam_uploads(username):
 
         url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
         browser.get(url)
-        time.sleep(5)  # Add a 5-second wait for page load
+        time.sleep(sleep_duration_seconds) # wait for page load
 
         # parse html
         soup = BeautifulSoup(browser.page_source, 'html.parser')
@@ -135,7 +137,7 @@ def get_steam_uploads(username):
                 print("ID not found in URL")
 
             detail_page_response = browser.get(href)
-            # time.sleep(5)
+            # time.sleep(sleep_duration_seconds)
             detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
             # Find the element with the class 'actualmediactn' and get the href attribute of the child 'a' tag
             actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
@@ -238,7 +240,7 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
             print('sent to discord...')
 
 # check twitter on timer loop
-@tasks.loop(minutes=5)
+@tasks.loop(seconds=300)
 async def check_twitter():
     global first_run_twitter
 
@@ -255,8 +257,8 @@ async def check_twitter():
     first_run_twitter = False
     print('done.')
 
-
-@tasks.loop(minutes=5)
+# check steam on timer loop
+@tasks.loop(seconds=300)
 async def check_steam():
     global first_run_steam
 
