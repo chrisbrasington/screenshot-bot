@@ -81,7 +81,7 @@ docker build -t screenshot-bot .
 5. Run the Docker container:
 
 ```
-docker run -d -t --restart=always screenshot-bot
+docker run -d -t screenshot-bot --restart=always 
 ```
 
 ## Usage
