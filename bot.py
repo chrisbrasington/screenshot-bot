@@ -36,12 +36,14 @@ bot = commands.Bot(
 # get tweets
 def get_tweets(username):
 
-    # with selenium, read from firefox headless
-    options = Options()
-    options.add_argument('-headless')
-    browser = webdriver.Firefox(options=options)
+    browser = None
 
     try:
+        # with selenium, read from firefox headless
+        options = Options()
+        options.add_argument('-headless')
+        browser = webdriver.Firefox(options=options)
+
         print(f'reading tweets from @{username}...')
 
         url = f'https://mobile.twitter.com/{username}'
@@ -50,6 +52,7 @@ def get_tweets(username):
 
         # parse html
         soup = BeautifulSoup(browser.page_source, 'html.parser')
+        browser.service.stop()
         browser.quit()
 
         if not soup:
@@ -88,16 +91,20 @@ def get_tweets(username):
 
         return tweet_data
     except Exception as e:
+        if browser is not None:
+            browser.service.stop()
+            browser.quit()
         print(e)
         return []
 
 def get_steam_uploads(username):
 
-    options = Options()
-    options.add_argument('-headless')
-    browser = webdriver.Firefox(options=options)
+    browser = None
 
     try:
+        options = Options()
+        options.add_argument('-headless')
+        browser = webdriver.Firefox(options=options)
 
         # with selenium, read from firefox headless
 
@@ -110,6 +117,7 @@ def get_steam_uploads(username):
         
         if not soup:
             logging.error('Failed to create BeautifulSoup object')
+            browser.service.stop()
             browser.quit()
             return []
 
@@ -159,11 +167,14 @@ def get_steam_uploads(username):
             if i>= 1:
                 break
 
+        browser.service.stop()
         browser.quit()
         return steam_data
     except Exception as e:
         print(e)
-        browser.quit()
+        if browser is not None:
+            browser.service.stop()
+            browser.quit()
         return []
 
 # post image to discord
