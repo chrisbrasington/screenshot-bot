@@ -1,0 +1,18 @@
+version: '3'
+services:
+  problematic-image:
+    image: screenshot-bot:latest
+    ports:
+      - "80:80"
+    networks:
+      slow-net:
+        aliases:
+          - screenshot-bot
+    environment:
+      - TC_QDISC=netem
+      - TC_DELAY=50ms
+      - TC_RATE=1mbit
+      - TC_CEIL=1mbit
+networks:
+  slow-net:
+    driver: bridge
