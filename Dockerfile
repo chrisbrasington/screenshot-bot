@@ -19,7 +19,7 @@ RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckod
     mv geckodriver /usr/local/bin
 
 # Add network throttling rule
-RUN tc qdisc add dev eth0 root tbf rate 0.5mbit burst 32kbit latency 400ms
+# RUN tc qdisc add dev eth0 root tbf rate 1mbit burst 32kbit latency 400ms
 
 # Copy the current directory contents into the container at /app
 COPY . /app
