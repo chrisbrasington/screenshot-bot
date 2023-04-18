@@ -46,8 +46,11 @@ def create_driver():
     # Connect to the DevTools instance
     browser = pychrome.Browser(url="http://localhost:9222")
 
+    # Create a new tab and start it
+    tab = browser.new_tab()
+    tab.start()
+
     # Enable the Network domain
-    tab = browser.list_tab()[0]
     tab.Network.enable()
 
     # Set the desired network conditions
