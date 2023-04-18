@@ -76,6 +76,8 @@ def quit_driver(driver):
 # get tweets
 def get_tweets(username):
 
+    browser = None
+
     try:
         browser = create_driver()
 
@@ -131,6 +133,8 @@ def get_tweets(username):
         return []
 
 def get_steam_uploads(username):
+
+    browser = None
 
     try:
         browser = create_driver()
