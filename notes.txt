@@ -1,3 +1,9 @@
+docker build -t screenshot-bot .
+docker run -d -t --name screenshot-bot screenshot-bot:latest
+
 docker inspect screenshot-bot
-nsenter --net=/var/run/docker/netns/67b67be50de6 bash
-tc qdisc add dev eth0 root tbf rate 0.5mbit burst 32kbit latency 400ms
+
+    "SandboxKey": "/var/run/docker/netns/59ffd7e2b434",
+
+sudo nsenter --net=/var/run/docker/netns/67b67be50de6 bash
+tc qdisc add dev eth0 root tbf rate 1mbit burst 32kbit latency 400ms
