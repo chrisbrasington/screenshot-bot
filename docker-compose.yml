@@ -1,6 +1,7 @@
 version: '3'
 services:
   screenshot-bot:
+    container_name: screenshot-bot
     image: screenshot-bot:latest
     # ports:
     #   - "80:80"
