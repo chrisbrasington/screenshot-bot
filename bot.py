@@ -34,13 +34,14 @@ bot = commands.Bot(
 # get tweets
 def get_tweets(username):
 
+    # with selenium, read from firefox headless
+    options = Options()
+    options.add_argument('-headless')
+    browser = webdriver.Firefox(options=options)
+
     try:
         print(f'reading tweets from @{username}...')
 
-        # with selenium, read from firefox headless
-        options = Options()
-        options.add_argument('-headless')
-        browser = webdriver.Firefox(options=options)
         url = f'https://mobile.twitter.com/{username}'
         browser.get(url)
         time.sleep(5)  # Add a 5-second wait for page load
@@ -90,12 +91,14 @@ def get_tweets(username):
 
 def get_steam_uploads(username):
 
+    options = Options()
+    options.add_argument('-headless')
+    browser = webdriver.Firefox(options=options)
+
     try:
 
         # with selenium, read from firefox headless
-        options = Options()
-        options.add_argument('-headless')
-        browser = webdriver.Firefox(options=options)
+
         url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
         browser.get(url)
         time.sleep(5)  # Add a 5-second wait for page load
@@ -105,6 +108,7 @@ def get_steam_uploads(username):
         
         if not soup:
             logging.error('Failed to create BeautifulSoup object')
+            browser.quit()
             return []
 
         # filter page elements for array of tweets
@@ -157,6 +161,7 @@ def get_steam_uploads(username):
         return steam_data
     except Exception as e:
         print(e)
+        browser.quit()
         return []
 
 # post image to discord
