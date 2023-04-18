@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     unzip \
-    firefox-esr
+    firefox-esr \
+    iproute2
 
 # Set the working directory to /app
 WORKDIR /app
@@ -16,6 +17,9 @@ RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckod
     tar -xvzf geckodriver-v0.30.0-linux64.tar.gz && \
     chmod +x geckodriver && \
     mv geckodriver /usr/local/bin
+
+# Add network throttling rule
+RUN tc qdisc add dev eth0 root tbf rate 0.5mbit burst 32kbit latency 400ms
 
 # Copy the current directory contents into the container at /app
 COPY . /app
