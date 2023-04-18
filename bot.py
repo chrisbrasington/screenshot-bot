@@ -7,11 +7,8 @@ import urllib.parse
 from discord.ext import commands, tasks
 from bs4 import BeautifulSoup
 from selenium import webdriver
-# from selenium.webdriver.firefox.options import Options
-# from selenium.webdriver.common.by import By
-import pychrome
-from selenium.webdriver.chrome.options import Options
-
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.by import By
 
 # processed posts (steam images / tweets)
 processed_posts = set()
@@ -34,48 +31,15 @@ bot = commands.Bot(
     case_insensitive=True,
     intents=discord.Intents.all())
 
-def create_driver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--remote-debugging-port=9222")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-
-    driver = webdriver.Chrome(options=chrome_options)
-
-    # Connect to the DevTools instance
-    browser = pychrome.Browser(url="http://localhost:9222")
-
-    # Enable the Network domain
-    tab = browser.list_tab()[0]
-    tab.Network.enable()
-
-    # Set the desired network conditions
-    throttling_rate = 0.5 * 1024 * 1024  # 0.5 MiB/s
-    tab.Network.emulateNetworkConditions(
-        offline=False,
-        latency=100,  # milliseconds
-        downloadThroughput=throttling_rate,  # bytes/s
-        uploadThroughput=throttling_rate,  # bytes/s
-        connectionType="cellular4g",
-    )
-
-    # Attach the tab to the driver instance for clean up later
-    driver.tab = tab
-
-    return driver
-
-def quit_driver(driver):
-    # Clean up
-    driver.tab.Network.disable()
-    driver.quit()
-
 # get tweets
 def get_tweets(username):
 
-    try:
-        browser = create_driver()
+    # with selenium, read from firefox headless
+    options = Options()
+    options.add_argument('-headless')
+    browser = webdriver.Firefox(options=options)
 
+    try:
         print(f'reading tweets from @{username}...')
 
         url = f'https://mobile.twitter.com/{username}'
@@ -84,7 +48,7 @@ def get_tweets(username):
 
         # parse html
         soup = BeautifulSoup(browser.page_source, 'html.parser')
-        quit_driver(browser)
+        browser.quit()
 
         if not soup:
             logging.error('Failed to create BeautifulSoup object')
@@ -123,13 +87,17 @@ def get_tweets(username):
         return tweet_data
     except Exception as e:
         print(e)
-        quit_driver(browser)
         return []
 
 def get_steam_uploads(username):
 
+    options = Options()
+    options.add_argument('-headless')
+    browser = webdriver.Firefox(options=options)
+
     try:
-        browser = create_driver()
+
+        # with selenium, read from firefox headless
 
         url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
         browser.get(url)
@@ -140,7 +108,7 @@ def get_steam_uploads(username):
         
         if not soup:
             logging.error('Failed to create BeautifulSoup object')
-            quit_driver(browser)
+            browser.quit()
             return []
 
         # filter page elements for array of tweets
@@ -189,11 +157,11 @@ def get_steam_uploads(username):
             if i>= 1:
                 break
 
-        quit_driver(browser)
+        browser.quit()
         return steam_data
     except Exception as e:
         print(e)
-        quit_driver(browser)
+        browser.quit()
         return []
 
 # post image to discord
