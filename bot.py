@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
+import subprocess
 
 # Configure Discord bot
 bot = commands.Bot(
@@ -40,6 +41,14 @@ class FirefoxWebDriverSingleton:
             cls._instance.service.stop()
             cls._instance.quit()
             cls._instance = None
+
+def kill_firefox_processes():
+    try:
+        subprocess.run(["pkill", "-f", "firefox-esr"], check=True)
+        print("Firefox processes terminated.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred while terminating Firefox processes: {e}")
+
 
 # get tweets
 def get_tweets(username):
@@ -293,9 +302,13 @@ async def on_ready():
 
     save_processed_posts(processed_posts, pickle_path)
 
-    print('quitting')
+    print('quitting firefox')
     FirefoxWebDriverSingleton.quit()
 
+    # kill firefox processes
+    kill_firefox_processes()
+
+    print('stopping bot')
     # bye bye bot
     await bot.close()
 
