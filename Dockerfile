@@ -38,4 +38,16 @@ ENV MOZ_HEADLESS=1
 # CMD ["python", "bot.py"]
 
 # run every 5 minutes
-CMD while true; do python botpy; sleep 300; done
+# CMD while true; do python bot.py; sleep 300; done
+
+# Copy the cron job file to the proper location
+COPY cronjob /etc/cron.d/cronjob
+
+# Apply proper permissions to the cron job file
+RUN chmod 0644 /etc/cron.d/cronjob
+
+# Add the log file for the cron job
+RUN touch /var/log/cron.log
+
+# Start the cron service in the background and tail the log file
+CMD cron && tail -f /var/log/cron.log

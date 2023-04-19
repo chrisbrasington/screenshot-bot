@@ -84,6 +84,10 @@ docker build -t screenshot-bot .
 docker run -d -t --name screenshot-bot screenshot-bot:latest
 ```
 
+```
+docker compose up -d screenshot-bot
+```
+
 ## Usage
 
 Once the bot is running, it will periodically check the specified Twitter accounts for new image tweets and post them in the designated Discord channel.
