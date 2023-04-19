@@ -52,5 +52,6 @@ RUN chmod 0644 /etc/cron.d/cronjob
 # Add the log file for the cron job
 RUN touch /var/log/cron.log
 
+# Run the command on container startup and
 # Start the cron service in the background and tail the log file
-CMD cron && tail -f /var/log/cron.log
+CMD python bot.py && service cron start && tail -f /var/log/cron.log
