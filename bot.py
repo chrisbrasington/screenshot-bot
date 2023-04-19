@@ -98,7 +98,7 @@ def get_tweets(username):
             tweet_id = timestamp
 
             # append to array tweet information, mostly image url array and timestamp as unique identifier
-            tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp})
+            tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp, 'title': None})
 
             break # only one
 
