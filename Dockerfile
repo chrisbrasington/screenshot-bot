@@ -20,7 +20,7 @@ RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckod
     tar -xvzf geckodriver-v0.30.0-linux64.tar.gz && \
     chmod +x geckodriver && \
     cp geckodriver /usr/local/bin \
-    cp geckodriver /usr/bin/geckodriver 
+    cp geckodriver /usr/bin 
 
 # Add network throttling rule
 # RUN tc qdisc add dev eth0 root tbf rate 1mbit burst 32kbit latency 400ms
