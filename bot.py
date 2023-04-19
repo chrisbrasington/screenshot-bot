@@ -343,7 +343,7 @@ else:
     print('first run, new pickle - creating processed posts set')
     processed_posts = set()
 
-sleep_duration_seconds = 0
+sleep_duration_seconds = 20
 
 # configs for paring twitter/discord users
 with open("config-twitter.json") as config_file:
