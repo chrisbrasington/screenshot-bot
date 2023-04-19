@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y cron
 RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz && \
     tar -xvzf geckodriver-v0.30.0-linux64.tar.gz && \
     chmod +x geckodriver && \
-    mv geckodriver /usr/local/bin
+    cp geckodriver /usr/local/bin \
+    cp geckodriver /usr/bin/geckodriver 
 
 # Add network throttling rule
 # RUN tc qdisc add dev eth0 root tbf rate 1mbit burst 32kbit latency 400ms
