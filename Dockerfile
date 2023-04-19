@@ -37,6 +37,9 @@ EXPOSE 80
 ENV DISPLAY=:99
 ENV MOZ_HEADLESS=1
 
+# Add /usr/local/bin to the PATH
+ENV PATH="/usr/local/bin:${PATH}"
+
 # Run bot.py when the container launches
 # CMD ["python", "bot.py"]
 
