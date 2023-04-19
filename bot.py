@@ -43,12 +43,14 @@ class FirefoxWebDriverSingleton:
             cls._instance = None
 
 def kill_firefox_processes():
-    try:
-        subprocess.run(["pkill", "-f", "firefox-esr"], check=True)
-        print("Firefox processes terminated.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred while terminating Firefox processes: {e}")
+    result = subprocess.run(["pkill", "-f", "firefox-esr"], capture_output=True, text=True)
 
+    if result.returncode == 0:
+        print("Firefox processes terminated.")
+    elif result.returncode == 1:
+        print("No matching Firefox processes found.")
+    else:
+        print(f"Error occurred while terminating Firefox processes: {result.stderr}")
 
 # get tweets
 def get_tweets(username):
