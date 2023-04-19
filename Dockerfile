@@ -35,4 +35,7 @@ ENV DISPLAY=:99
 ENV MOZ_HEADLESS=1
 
 # Run bot.py when the container launches
-CMD ["python", "bot.py"]
+# CMD ["python", "bot.py"]
+
+# run every 5 minutes
+CMD while true; do python botpy; sleep 300; done

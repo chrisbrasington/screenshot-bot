@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json
+import json, pickle, os, logging
 import asyncio, aiohttp
 import discord, requests
 import time, sys, io, re, time, urllib.parse
@@ -10,39 +10,43 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 
-# processed posts (steam images / tweets)
-processed_posts = set()
-
-# first run
-first_run_twitter = True
-first_run_steam = True
-
-sleep_duration_seconds = 20
-
-# configs for paring twitter/discord users
-with open("config-twitter.json") as config_file:
-    twitter_config = json.load(config_file)
-
-# configs for paring steam/discord users
-with open("config-steam.json") as config_file:
-    steam_config = json.load(config_file)
-
 # Configure Discord bot
 bot = commands.Bot(
     command_prefix="/",
     case_insensitive=True,
     intents=discord.Intents.all())
 
+# single instance of firefox webdriver
+class FirefoxWebDriverSingleton:
+    _instance = None
+
+    def __init__(self):
+        if not FirefoxWebDriverSingleton._instance:
+            print("Creating new instance of Firefox WebDriver")
+        else:
+            print("Using existing instance of Firefox WebDriver")
+
+    @classmethod
+    def get_instance(cls):
+        if not cls._instance:
+            options = Options()
+            options.add_argument('-headless')
+            cls._instance = webdriver.Firefox(options=options)
+        return cls._instance
+    
+    @classmethod
+    def quit(cls):
+        if cls._instance:
+            cls._instance.service.stop()
+            cls._instance.quit()
+            cls._instance = None
+
 # get tweets
 def get_tweets(username):
 
-    browser = None
-
     try:
-        # with selenium, read from firefox headless
-        options = Options()
-        options.add_argument('-headless')
-        browser = webdriver.Firefox(options=options)
+
+        browser = FirefoxWebDriverSingleton().get_instance()
 
         print(f'reading tweets from @{username}...')
 
@@ -52,8 +56,6 @@ def get_tweets(username):
 
         # parse html
         soup = BeautifulSoup(browser.page_source, 'html.parser')
-        browser.service.stop()
-        browser.quit()
 
         if not soup:
             logging.error('Failed to create BeautifulSoup object')
@@ -91,23 +93,16 @@ def get_tweets(username):
 
         return tweet_data
     except Exception as e:
-        if browser is not None:
-            browser.service.stop()
-            browser.quit()
         print(e)
         return []
 
+# get steam screenshots
 def get_steam_uploads(username):
 
-    browser = None
-
     try:
-        options = Options()
-        options.add_argument('-headless')
-        browser = webdriver.Firefox(options=options)
+        browser = FirefoxWebDriverSingleton().get_instance()
 
         # with selenium, read from firefox headless
-
         url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
         browser.get(url)
         time.sleep(sleep_duration_seconds) # wait for page load
@@ -117,8 +112,6 @@ def get_steam_uploads(username):
         
         if not soup:
             logging.error('Failed to create BeautifulSoup object')
-            browser.service.stop()
-            browser.quit()
             return []
 
         # filter page elements for array of tweets
@@ -167,19 +160,14 @@ def get_steam_uploads(username):
             if i>= 1:
                 break
 
-        browser.service.stop()
-        browser.quit()
         return steam_data
     except Exception as e:
         print(e)
-        if browser is not None:
-            browser.service.stop()
-            browser.quit()
         return []
 
 # post image to discord
-async def post_images(username, discord_user_id, channel_id, is_steam = False):
-    global bot, first_run_twitter, first_run_steam, processed_posts
+async def post_images(username, discord_user_id, channel_id, is_steam):
+    global bot, processed_posts
 
     # search for upload discord channel
     channel = bot.get_channel(channel_id)
@@ -197,7 +185,8 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
     for post in posts:
 
         # if first run, mark latest, do not re-upload to discord
-        if (first_run_twitter and not is_steam) or (first_run_steam and is_steam):
+        if(first_run):
+            print('since pickle was created, this is the first run')
             print(f"first run, adding to processed: {post['id']}")
             processed_posts.add(post['id'])        
             continue
@@ -231,7 +220,7 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
                     
                     # send to discord channel
                     file = discord.File(io.BytesIO(response.content), filename="image.jpg")
-                    if (not is_steam and not first_run_twitter) or (is_steam and not first_run_steam):
+                    if not first_run:
 
                         title = post['title']
 
@@ -250,10 +239,9 @@ async def post_images(username, discord_user_id, channel_id, is_steam = False):
 
             print('sent to discord...')
 
-# check twitter on timer loop
-@tasks.loop(seconds=300)
+# check twitter once
 async def check_twitter():
-    global first_run_twitter
+    global first_run
 
     # for each user in config
     for user in twitter_config["users"]:
@@ -265,11 +253,9 @@ async def check_twitter():
         channel_id = twitter_config['channel_id']
 
         await post_images(username, discord_user_id, channel_id, False)
-    first_run_twitter = False
     print('done.')
 
-# check steam on timer loop
-@tasks.loop(seconds=300)
+# check steam once
 async def check_steam():
     global first_run_steam
 
@@ -286,21 +272,70 @@ async def check_steam():
     first_run_steam = False
     print('done.')
 
+# bot on ready
 @bot.event
 async def on_ready():
     await bot.change_presence(status=discord.Status.online)
     print(f'Logged in as {bot.user.name}')
+
     try:
-        check_twitter.start()
+        await check_twitter()
     except RuntimeError as e:
         print('already running twitter task')
     except Exception as e:
         print(e)
     try:
-        check_steam.start()
+        await check_steam()
     except RuntimeError as e:
         print('already running steam task')
     except Exception as e:
         print(e)
+
+    save_processed_posts(processed_posts, pickle_path)
+
+    print('quitting')
+    FirefoxWebDriverSingleton.quit()
+
+    # bye bye bot
+    await bot.close()
+
+# Save the set to a file
+def save_processed_posts(processed_posts, file_path):
+    print('saving processed posts set')
+    with open(file_path, 'wb') as file:
+        pickle.dump(processed_posts, file)
+
+# Load the set from a file
+def load_processed_posts(file_path):
+    try:
+        with open(file_path, 'rb') as file:
+            return pickle.load(file)
+    except FileNotFoundError:
+        return set()
+
+# processed posts (steam images / tweets)
+pickle_path = 'processed_posts.pickle'
+
+first_run = True
+
+# Check if the file exists, otherwise use an empty set
+if os.path.exists(pickle_path):
+    first_run = False
+    print('subsequent run, existing pickle - loading processed posts set')
+    print('anything found will be added to the pickle (and discord)')
+    processed_posts = load_processed_posts(pickle_path)
+else:
+    print('first run, new pickle - creating processed posts set')
+    processed_posts = set()
+
+sleep_duration_seconds = 0
+
+# configs for paring twitter/discord users
+with open("config-twitter.json") as config_file:
+    twitter_config = json.load(config_file)
+
+# configs for paring steam/discord users
+with open("config-steam.json") as config_file:
+    steam_config = json.load(config_file)
 
 bot.run(twitter_config['discord_token'])
