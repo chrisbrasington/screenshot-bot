@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y \
 # Set the working directory to /app
 WORKDIR /app
 
+# Install cron
+RUN apt-get update && apt-get install -y cron
+
 # Download and install Geckodriver
 RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.30.0/geckodriver-v0.30.0-linux64.tar.gz && \
     tar -xvzf geckodriver-v0.30.0-linux64.tar.gz && \
