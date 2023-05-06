@@ -281,7 +281,7 @@ async def check_twitter():
 # check steam once
 async def check_steam():
     global first_run
-``
+
     # for each user in config
     for user in steam_config["users"]:
         print('~~~~~~~')
