@@ -278,7 +278,7 @@ async def check_twitter():
 
 # check steam once
 async def check_steam():
-    global first_run_steam
+    global first_run
 
     # for each user in config
     for user in steam_config["users"]:
@@ -290,7 +290,6 @@ async def check_steam():
         channel_id = twitter_config['channel_id']
 
         await post_images(username, discord_user_id, channel_id, True)
-    first_run_steam = False
     print('done.')
 
 # bot on ready
