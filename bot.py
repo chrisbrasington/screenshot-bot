@@ -64,6 +64,7 @@ def kill_firefox_processes():
 
 # get tweets
 def get_tweets(username):
+    global sleep_duration_seconds
 
     try:
 
@@ -119,6 +120,7 @@ def get_tweets(username):
 
 # get steam screenshots
 def get_steam_uploads(username):
+    global sleep_duration_seconds
 
     try:
         browser = FirefoxWebDriverSingleton().get_instance()
@@ -279,7 +281,7 @@ async def check_twitter():
 # check steam once
 async def check_steam():
     global first_run
-
+``
     # for each user in config
     for user in steam_config["users"]:
         print('~~~~~~~')
