@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 import subprocess
 
 # Configure Discord bot
@@ -32,7 +33,16 @@ class FirefoxWebDriverSingleton:
         if not cls._instance:
             options = Options()
             options.add_argument('-headless')
-            cls._instance = webdriver.Firefox(options=options)
+
+            # Create Firefox profile that deletes temporary files
+            profile = FirefoxProfile()
+            profile.set_preference("browser.cache.disk.enable", False)
+            profile.set_preference("browser.cache.memory.enable", False)
+            profile.set_preference("browser.cache.offline.enable", False)
+            profile.set_preference("browser.privatebrowsing.autostart", True)
+
+            # Create Firefox webdriver instance with the profile
+            cls._instance = webdriver.Firefox(options=options,firefox_profile=profile)
         return cls._instance
     
     @classmethod
