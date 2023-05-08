@@ -236,6 +236,8 @@ async def post_images(username, discord_user_id, channel_id, is_steam):
         # mention
         mention = f'<@{discord_user_id}>'
 
+        first = True
+
         # for each image
         for img_url in post['img_urls']:
 
@@ -257,10 +259,20 @@ async def post_images(username, discord_user_id, channel_id, is_steam):
 
                         title = post['title']
 
-                        if title is not None:
-                            await channel.send(f'From: {mention} playing {title}', file=file)
+                        from_msg = None
+
+                        if first:
+                            from_msg = f'From: {mention}'
+
+                            if title is not None:
+                                from_msg += f' playing {title}'
+
+                        if from_msg is not None:
+                            await channel.send(from_msg, file=file)
                         else:
-                            await channel.send(f'From: {mention}', file=file)
+                            await channel.send(file=file)
+
+                        first = False
                     else:
                         if is_steam:
                             print('first run, setting latest of steam..')
