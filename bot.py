@@ -104,7 +104,7 @@ def get_tweets(username):
             img_urls = []
             for img_url in tweet.find_all('img'):
                 if 'profile_images' not in img_url['src']:
-                    parsed_url = urlparse(img_url)
+                    parsed_url = urlparse(img_url['src'])
                     query_params = parse_qs(parsed_url.query)
                     query_params['name'] = 'large'
                     new_query_string = urlencode(query_params, doseq=True)
