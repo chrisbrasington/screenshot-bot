@@ -102,17 +102,11 @@ def get_tweets(username):
             # get metadata
             # tweet_id = tweet['aria-labelledby'].split()[0]
             img_urls = []
-            for img_url in tweet.find_all('img'):
-                if 'profile_images' not in img_url['src']:
-                    parsed_url = urlparse(img_url['src'])
-                    query_params = parse_qs(parsed_url.query)
-                    query_params['name'] = 'large'
-                    new_query_string = urlencode(query_params, doseq=True)
-                    new_url_parts = list(parsed_url)
-                    new_url_parts[4] = new_query_string
-                    new_url = urlunparse(new_url_parts)
-                    print(new_url)
-                    img_urls.append(new_url)
+            for img in tweet.find_all('img'):
+                if 'profile_images' not in img['src']:
+                    img_url = img['src'].split('?')[0] + '?format=jpg&name=large'
+                    img_urls.append(img_url)
+
             timestamp_element = tweet.find('time')
             timestamp = None
             if timestamp_element:
