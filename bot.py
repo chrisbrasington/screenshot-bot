@@ -11,6 +11,7 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 import subprocess
+from urllib.parse import urlparse, parse_qs, urlunparse
 
 # Configure Discord bot
 bot = commands.Bot(
@@ -100,7 +101,16 @@ def get_tweets(username):
 
             # get metadata
             # tweet_id = tweet['aria-labelledby'].split()[0]
-            img_urls = [img['src'] for img in tweet.find_all('img') if 'profile_images' not in img['src']]
+            img_urls = []
+            for img in tweet.find_all('img'):
+                if 'profile_images' not in img['src']:
+                    parsed_url = urlparse(img['src'])
+                    query_params = parse_qs(parsed_url.query)
+                    query_params['name'] = 'large'
+                    new_url_parts = list(parsed_url)
+                    new_url_parts[4] = '&'.join([f"{k}={v[0]}" for k,v in query_params.items()])
+                    new_url = urlunparse(new_url_parts)
+                    img_urls.append(new_url)
             timestamp_element = tweet.find('time')
             timestamp = None
             if timestamp_element:
