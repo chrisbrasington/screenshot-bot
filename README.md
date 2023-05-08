@@ -85,7 +85,7 @@ docker run -d -t --name screenshot-bot screenshot-bot:latest
 ```
 
 ```
-docker compose up -d screenshot-bot
+docker-compose up -d screenshot-bot
 ```
 
 ## Usage
