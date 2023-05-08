@@ -106,6 +106,7 @@ def get_tweets(username):
                 if 'profile_images' not in img['src']:
                     img_url = img['src'].split('?')[0] + '?format=jpg&name=large'
                     img_urls.append(img_url)
+                    print(img_url)
 
             timestamp_element = tweet.find('time')
             timestamp = None
