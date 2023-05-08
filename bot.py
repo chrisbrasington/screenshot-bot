@@ -104,12 +104,14 @@ def get_tweets(username):
             img_urls = []
             for img in tweet.find_all('img'):
                 if 'profile_images' not in img['src']:
-                    parsed_url = urlparse(img['src'])
+                    parsed_url = urlparse(img_url)
                     query_params = parse_qs(parsed_url.query)
                     query_params['name'] = 'large'
+                    new_query_string = urlencode(query_params, doseq=True)
                     new_url_parts = list(parsed_url)
-                    new_url_parts[4] = '&'.join([f"{k}={v[0]}" for k,v in query_params.items()])
+                    new_url_parts[4] = new_query_string
                     new_url = urlunparse(new_url_parts)
+                    print(new_url)
                     img_urls.append(new_url)
             timestamp_element = tweet.find('time')
             timestamp = None
