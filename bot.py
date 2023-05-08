@@ -103,7 +103,7 @@ def get_tweets(username):
             # tweet_id = tweet['aria-labelledby'].split()[0]
             img_urls = []
             for img_url in tweet.find_all('img'):
-                if 'profile_images' not in img['src']:
+                if 'profile_images' not in img_url['src']:
                     parsed_url = urlparse(img_url)
                     query_params = parse_qs(parsed_url.query)
                     query_params['name'] = 'large'
