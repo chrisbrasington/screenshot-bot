@@ -116,11 +116,13 @@ def get_tweets(username):
             tweet_id = timestamp
 
             # get tweet text
-            text_element = tweet.find('[data-testid="tweet"] > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)')
+            text_element = tweet.select('[lang]')
             if text_element:
-                tweet_text = text_element.text
+                tweet_text = text_element[0].text
             else:
                 tweet_text = None
+
+            print(f'tweet text: {tweet_text}')
 
             # append to array tweet information, mostly image url array and timestamp as unique identifier
             tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp, 'title': tweet_text})
@@ -131,6 +133,7 @@ def get_tweets(username):
     except Exception as e:
         print(e)
         return []
+
 
 # get steam screenshots
 def get_steam_uploads(username):
