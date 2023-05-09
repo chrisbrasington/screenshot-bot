@@ -115,8 +115,15 @@ def get_tweets(username):
                 
             tweet_id = timestamp
 
+            # get tweet text
+            text_element = tweet.find('[data-testid="tweet"] > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1)')
+            if text_element:
+                tweet_text = text_element.text
+            else:
+                tweet_text = None
+
             # append to array tweet information, mostly image url array and timestamp as unique identifier
-            tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp, 'title': None})
+            tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp, 'title': tweet_text})
 
             break # only one
 
