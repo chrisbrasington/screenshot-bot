@@ -12,6 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 import subprocess
 from urllib.parse import urlparse, parse_qs, urlunparse
+import glob, shutil
 
 # Configure Discord bot
 bot = commands.Bot(
@@ -49,9 +50,18 @@ class FirefoxWebDriverSingleton:
     @classmethod
     def quit(cls):
         if cls._instance:
+            print('Quitting Firefox WebDriver instance')
             cls._instance.service.stop()
             cls._instance.quit()
             cls._instance = None
+
+            print('Deleting temporary files')
+            tmp_files = glob.glob('/tmp/*')
+            for f in tmp_files:
+                if os.path.isfile(f):
+                    os.remove(f)
+                elif os.path.isdir(f):
+                    shutil.rmtree(f)
 
 def kill_firefox_processes():
     result = subprocess.run(["pkill", "-f", "firefox-esr"], capture_output=True, text=True)
