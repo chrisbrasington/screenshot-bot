@@ -28,7 +28,7 @@ class FirefoxWebDriverSingleton:
     def __init__(self):
         if not FirefoxWebDriverSingleton._instance:
             print("Creating new instance of Firefox WebDriver")
-            cls.delete_temporary_folder()
+            self.delete_temporary_folder()
         else:
             print("Using existing instance of Firefox WebDriver")
 
