@@ -60,13 +60,17 @@ class FirefoxWebDriverSingleton:
 
     @classmethod
     def delete_temporary_folder(cls):
+        dir = '/tmp'
         try:
             print('Deleting temporary folder')
-            if os.path.exists('/tmp'):
-                shutil.rmtree('/tmp')
+            if os.path.exists(dir):
+                shutil.rmtree(dir)
         except Exception as ex:
             print('Error deleting /tmp, continuing')
             print(ex)
+        
+        if not os.path.exists(dir):
+            os.makedirs(dir)
 
 def kill_firefox_processes():
     result = subprocess.run(["pkill", "-f", "firefox-esr"], capture_output=True, text=True)
