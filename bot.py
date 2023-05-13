@@ -121,7 +121,10 @@ def get_tweets(username):
             timestamp_element = tweet.find('time')
             timestamp = None
             if timestamp_element:
-                timestamp = timestamp_element['datetime']
+                original_timestamp = timestamp_element['datetime']
+                dt = datetime.datetime.strptime(original_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+                truncated_timestamp = dt.replace(second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+                timestamp = truncated_timestamp
                 
             tweet_id = timestamp
 
