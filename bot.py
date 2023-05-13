@@ -28,6 +28,7 @@ class FirefoxWebDriverSingleton:
     def __init__(self):
         if not FirefoxWebDriverSingleton._instance:
             print("Creating new instance of Firefox WebDriver")
+            cls.delete_temporary_folder()
         else:
             print("Using existing instance of Firefox WebDriver")
 
@@ -55,14 +56,17 @@ class FirefoxWebDriverSingleton:
             cls._instance.service.stop()
             cls._instance.quit()
             cls._instance = None
+            cls.delete_temporary_folder()
 
-            try:
-                print('Deleting temporary folder')
-                if(os.path.exists('/tmp')):
-                    shutil.rmtree('/tmp')
-            except Exception as ex:
-                print('error deleting /tmp, continuing')
-                print(ex)
+    @classmethod
+    def delete_temporary_folder(cls):
+        try:
+            print('Deleting temporary folder')
+            if os.path.exists('/tmp'):
+                shutil.rmtree('/tmp')
+        except Exception as ex:
+            print('Error deleting /tmp, continuing')
+            print(ex)
 
 def kill_firefox_processes():
     result = subprocess.run(["pkill", "-f", "firefox-esr"], capture_output=True, text=True)
