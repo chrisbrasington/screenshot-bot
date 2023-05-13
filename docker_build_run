@@ -1,2 +1,4 @@
+docker stop screenshot-bot
+docker rm screenshot-bot
 docker build -t screenshot-bot .
 docker run -d -t --name screenshot-bot screenshot-bot:latest
