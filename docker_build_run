@@ -1,0 +1,4 @@
+docker_build_run() {
+    docker build -t screenshot-bot .
+    docker run -d -t --name screenshot-bot screenshot-bot:latest
+}
