@@ -1,3 +1,7 @@
+.vs 
+.vscode
+dev/
+
 config*.json
 *.pickle
 
