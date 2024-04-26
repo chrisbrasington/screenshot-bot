@@ -37,8 +37,9 @@ class bot_client(discord.Client):
 
             print(f'Syncing commands to {guild.name}...')
 
-            # only if clear is needed
+            # only if clear is needed and uncomment and re-run
             # tree.clear_commands(guild = guild)
+
             await tree.sync(guild = guild)
             commands = await tree.fetch_commands(guild = guild)
 
@@ -353,17 +354,15 @@ I allow you to register your Steam ID to access your Steam screenshots directly 
 
 Here are the available commands:
 
-/register [your_steam_id] - Register your Steam ID. Integer guarenteed to work, some usernames work.
+/register [steamID64] - Lookup your steamID64: https://steamid.io
+/register [custom_url] - If you go to your steam edit profile and set a custom URL, you can use that instead of your steamID64
 /screenshot - View your registered Steam screenshots. Use this command to get a link to your latest Steam screenshot.
 /help - Get help and learn about available commands.
 
 Example usage:
-/register 1234567890
-/register raylinth
+/register steamID64
 /screenshot
 /help
-
-For further assistance, feel free to contact the bot developer.
 """
     await interaction.response.send_message(help_message)
 
