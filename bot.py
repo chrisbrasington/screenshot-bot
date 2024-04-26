@@ -114,12 +114,13 @@ def get_steam_uploads(username):
     global sleep_duration_seconds
 
     try:
+        url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
+        console.log(url)
+
         browser = FirefoxWebDriverSingleton().get_instance()
 
         # with selenium, read from firefox headless
-        url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
         
-        console.log(url)
 
         browser.get(url)
         time.sleep(sleep_duration_seconds) # wait for page load
