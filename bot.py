@@ -109,6 +109,7 @@ def kill_firefox_processes():
     else:
         print(f"Error occurred while terminating Firefox processes: {result.stderr}")
 
+# get steam url
 def get_steam_url(username):
     """
     Generate the Steam URL for accessing screenshots based on the provided username or Steam ID.
@@ -129,7 +130,6 @@ def get_steam_url(username):
         steam_url = f"https://steamcommunity.com/id/{username}/screenshots/view=grid"
     
     return steam_url
-
 
 # get steam screenshots
 def get_steam_uploads(username):
@@ -366,7 +366,5 @@ Example usage:
 For further assistance, feel free to contact the bot developer.
 """
     await interaction.response.send_message(help_message)
-
-
 
 bot.run(token)
