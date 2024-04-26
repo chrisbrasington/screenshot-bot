@@ -1,20 +1,9 @@
 version: '3'
+
 services:
   screenshot-bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: screenshot-bot
     image: screenshot-bot:latest
-    networks:
-      slow-net:
-        aliases:
-          - screenshot-bot-slow-net
-    environment:
-      - TC_QDISC=netem
-      - TC_DELAY=50ms
-      - TC_RATE=1mbit
-      - TC_CEIL=1mbit
-networks:
-  slow-net:
-    driver: bridge
+    container_name: screenshot-bot
+    volumes:
+      - ./data:/app/data
+    restart: always
