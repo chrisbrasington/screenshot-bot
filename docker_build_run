@@ -1,6 +1,5 @@
 docker stop screenshot-bot
 docker rm screenshot-bot
 docker build -t screenshot-bot .
-docker volume create screenshot-bot-data
 # docker run -d -t --name screenshot-bot screenshot-bot:latest
-docker run -d -t --name screenshot-bot -v screenshot-bot-data:/data -v "$(pwd)":/app screenshot-bot:latest
+docker run -d -t --name screenshot-bot -v "$(pwd)/data:/data" screenshot-bot:latest
