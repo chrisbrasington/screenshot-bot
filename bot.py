@@ -115,7 +115,7 @@ def get_steam_uploads(username):
 
     try:
         url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
-        console.log(url)
+        print(url)
 
         browser = FirefoxWebDriverSingleton().get_instance()
 
