@@ -118,6 +118,9 @@ def get_steam_uploads(username):
 
         # with selenium, read from firefox headless
         url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
+        
+        console.log(url)
+
         browser.get(url)
         time.sleep(sleep_duration_seconds) # wait for page load
 
