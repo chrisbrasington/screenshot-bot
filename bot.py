@@ -109,21 +109,42 @@ def kill_firefox_processes():
     else:
         print(f"Error occurred while terminating Firefox processes: {result.stderr}")
 
+def get_steam_url(username):
+    """
+    Generate the Steam URL for accessing screenshots based on the provided username or Steam ID.
+    
+    Args:
+    - username (str): The username or Steam ID
+    
+    Returns:
+    - str: The generated Steam URL
+    """
+    try:
+        # Try converting the username to an integer (Steam ID)
+        steam_id = int(username)
+        # If successful, construct URL with Steam ID
+        steam_url = f"https://steamcommunity.com/profiles/{steam_id}/screenshots/view=grid"
+    except ValueError:
+        # If conversion fails, assume it's a custom username
+        steam_url = f"https://steamcommunity.com/id/{username}/screenshots/view=grid"
+    
+    return steam_url
+
+
 # get steam screenshots
 def get_steam_uploads(username):
-    global sleep_duration_seconds
+    page_load_wait = 0
 
     try:
-        url = f'https://steamcommunity.com/id/{username}/screenshots/?appid=0&sort=newestfirst&browsefilter=myfiles&view=grid'
+        url = get_steam_url(username)
         print(url)
 
         browser = FirefoxWebDriverSingleton().get_instance()
 
         # with selenium, read from firefox headless
-        
 
         browser.get(url)
-        time.sleep(sleep_duration_seconds) # wait for page load
+        time.sleep(page_load_wait) # wait for page load
 
         # parse html
         soup = BeautifulSoup(browser.page_source, 'html.parser')
@@ -184,50 +205,23 @@ def get_steam_uploads(username):
         return []
 
 # post image to discord
-async def post_images(username, discord_user_id, channel):
+async def post_images(username, interaction, testing = False):
     global bot, processed_posts
 
-    # # search for upload discord channel
-    # channel = bot.get_channel(channel_id)
-    # # await channel.send('test')
-    # if not channel:
-    #     print(f'Channel not found for ID: {channel_id}')
+    await interaction.response.send_message(content='Loading...')
+
+    channel = bot.get_channel(interaction.channel_id) 
+    mention = interaction.user.mention
 
     posts = get_steam_uploads(username)
 
-    # for each tweet
+    # for each steam images
     for post in posts:
-
-        # if first run, mark latest, do not re-upload to discord
-        if(first_run):
-            print('since pickle was created, this is the first run')
-            print(f"first run, adding to processed: {post['id']}")
-            processed_posts.add(post['id'])        
-            continue
-
-        # already processed
-        if post['id'] in processed_posts:
-            print(f"already processed: {post['id']}")
-            continue
-
-        # not already processed, add
-        print(f'new: {post}')
-        processed_posts.add(post['id'])
-
-        # mention
-        mention = f'<@{discord_user_id}>'
-
-        first = True
 
         # for each image
         for img_url in post['img_urls']:
 
-            print(img_url)
-
-            # upload channel
-            channel = bot.get_channel(channel_id)
-
-            print('downloading...')
+            print(f'Downloading... {img_url}')
 
             # download image            
             try:
@@ -236,34 +230,36 @@ async def post_images(username, discord_user_id, channel):
                     
                     # send to discord channel
                     file = discord.File(io.BytesIO(response.content), filename="image.jpg")
-                    if not first_run:
+                    
+                    title = post['title']
 
-                        title = post['title']
+                    from_msg = f'{mention}'
 
-                        from_msg = None
+                    if testing:
+                        from_msg = f' testing steam id ({username})'
 
-                        if first:
-                            from_msg = f'From: {mention}'
+                    if title is not None:
+                        from_msg += f' playing {title}'
 
-                            if title is not None:
-                                from_msg += f' playing {title}'
+                    print('Responding...')
+                    print(from_msg)
 
-                        if from_msg is not None:
-                            await channel.send(from_msg, file=file)
-                        else:
-                            await channel.send(file=file)
+                    message = await interaction.original_response()          
 
-                        first = False
+                    if from_msg is not None:
+                        # 
+                        await message.edit(content=from_msg, attachments=[file])
+                        # await channel.send(from_msg, file=file)
                     else:
-                        if is_steam:
-                            print('first run, setting latest of steam..')
-                        else:
-                            print('first run, setting latest of twitter..')
+                        await channel.send(file=file)
+                    
             except Exception as e:
                 # handle the exception gracefully
-                print("An exception occurred:", e)         
+                error = f'An exception occurred: {e}'
+                print(error)
+                await message.edit(content=error)   
 
-            print('sent to discord...')
+            print('Done.')
 
 # check steam once
 async def check_steam():
@@ -275,10 +271,9 @@ async def check_steam():
         print('checking steam... ', end='')
         print(user)
         username = user["steam_username"]
-        discord_user_id = user["discord_user_id"]
         channel_id = twitter_config['channel_id']
 
-        await post_images(username, discord_user_id, channel_id, True)
+        await post_images(username, channel_id, True)
     print('done.')
 
 def setup():
@@ -288,7 +283,7 @@ def setup():
     tree = app_commands.CommandTree(bot)
 
     # processed posts (steam images / tweets)
-    pickle_path = 'state.pickle'
+    pickle_path = 'data/state.pickle'
 
     state = {}
 
@@ -320,10 +315,12 @@ async def register(interaction, steam: str):
     state[interaction.user.id] = steam
 
     # save pickle 
-    with open('state.pickle', 'wb') as f:
+    with open('data/state.pickle', 'wb') as f:
         pickle.dump(state, f)
 
-    await interaction.response.send_message(f'Registered steam id: {steam} to {interaction.user.mention}')
+    response = f'Registered steam id: {steam} to {interaction.user.mention}'
+    response += f'\n{get_steam_url(steam)}'
+    await interaction.response.send_message(response)
 
 @tree.command(guild=guild, description='steam screenshots')
 async def screenshot(interaction):
@@ -333,16 +330,43 @@ async def screenshot(interaction):
 
         steam_id = state[interaction.user.id]
         
-        await post_images(steam_id, interaction.user.id, interaction.channel_id)
+        await post_images(steam_id, interaction)
         
         return
     else:
         # register steam id with register command
         await interaction.response.send_message(f'Register steam id with /register command')
 
+@tree.command(guild=guild, description='Test any steam id')
+async def test(interaction, steam: str):
+    await post_images(steam, interaction, True)
 
-@tree.command(guild = guild, description='Check bot status')
-async def test(interaction):
-    await interaction.response.send_message('Test successful!')
+@tree.command(guild=guild, description='Get help and learn about available commands.')
+async def help(interaction):
+    """
+    Get help and learn about available commands.
+    """
+
+    help_message = """Hi, I'm screenshot-bot!
+    
+I allow you to register your Steam ID to access your Steam screenshots directly within Discord.
+
+Here are the available commands:
+
+/register [your_steam_id] - Register your Steam ID. Integer guarenteed to work, some usernames work.
+/screenshot - View your registered Steam screenshots. Use this command to get a link to your latest Steam screenshot.
+/help - Get help and learn about available commands.
+
+Example usage:
+/register 1234567890
+/register raylinth
+/screenshot
+/help
+
+For further assistance, feel free to contact the bot developer.
+"""
+    await interaction.response.send_message(help_message)
+
+
 
 bot.run(token)
