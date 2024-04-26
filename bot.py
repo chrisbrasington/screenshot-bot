@@ -4,7 +4,6 @@ import asyncio, aiohttp
 import discord, requests
 import time, sys, io, re, time, urllib.parse
 import urllib.parse
-from discord.ext import commands, tasks
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
@@ -14,12 +13,40 @@ import subprocess
 from urllib.parse import urlparse, parse_qs, urlunparse
 import glob, shutil
 import datetime
+from discord import app_commands
 
 # Configure Discord bot
-bot = commands.Bot(
-    command_prefix="/",
-    case_insensitive=True,
-    intents=discord.Intents.all())
+class bot_client(discord.Client):
+    def __init__(self):
+        intents = discord.Intents.all()
+        # intents.members = True
+        # intents.message_content = True
+        super().__init__(intents=intents)
+        self.synced = False
+
+    async def on_ready(self):
+        print(f'Logged in as {self.user.name}')
+
+        await self.wait_until_ready()
+        if not self.synced:
+
+            with open("config-steam.json") as config_file:
+                steam_config = json.load(config_file)
+
+            guild = self.get_guild(steam_config['guild_id'])
+
+            print(f'Syncing commands to {guild.name}...')
+
+            # only if clear is needed
+            # tree.clear_commands(guild = guild)
+            await tree.sync(guild = guild)
+            commands = await tree.fetch_commands(guild = guild)
+
+            # print commands
+            for command in commands:
+                print(f'Command: {command.name}')
+
+            print('Ready')        
 
 # single instance of firefox webdriver
 class FirefoxWebDriverSingleton:
@@ -81,81 +108,6 @@ def kill_firefox_processes():
         print("No matching Firefox processes found.")
     else:
         print(f"Error occurred while terminating Firefox processes: {result.stderr}")
-
-# get tweets
-def get_tweets(username):
-    global sleep_duration_seconds
-
-    try:
-
-        browser = FirefoxWebDriverSingleton().get_instance()
-
-        print(f'reading tweets from @{username}...')
-
-        url = f'https://mobile.twitter.com/{username}'
-        browser.get(url)
-        time.sleep(sleep_duration_seconds)  # wait for page load
-
-        # parse html
-        soup = BeautifulSoup(browser.page_source, 'html.parser')
-
-        if not soup:
-            logging.error('Failed to create BeautifulSoup object')
-            return []
-
-        # filter page elements for array of tweets
-        tweets = soup.select('[data-testid="tweet"]')
-
-        tweet_data = []
-
-        # for each tweet
-        for tweet in tweets:
-
-            # if it's video, skip atm (haven't written downloader)
-            is_video = tweet.select('[data-testid="videoComponent"]')
-
-            if len(is_video) > 0:
-                print('skipping video')
-                continue
-
-            # get metadata
-            # tweet_id = tweet['aria-labelledby'].split()[0]
-            img_urls = []
-            for img in tweet.find_all('img'):
-                if 'profile_images' not in img['src']:
-                    img_url = img['src'].split('?')[0] + '?format=jpg&name=large'
-                    img_urls.append(img_url)
-                    print(img_url)
-
-            timestamp_element = tweet.find('time')
-            timestamp = None
-            if timestamp_element:
-                original_timestamp = timestamp_element['datetime']
-                dt = datetime.datetime.strptime(original_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
-                truncated_timestamp = dt.replace(second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
-                timestamp = truncated_timestamp
-                
-            tweet_id = timestamp
-
-            # get tweet text
-            text_element = tweet.select('[lang]')
-            if text_element:
-                tweet_text = text_element[0].text
-            else:
-                tweet_text = None
-
-            print(f'tweet text: {tweet_text}')
-
-            # append to array tweet information, mostly image url array and timestamp as unique identifier
-            tweet_data.append({'id': tweet_id, 'img_urls': img_urls, 'timestamp': timestamp, 'title': tweet_text})
-
-            break # only one
-
-        return tweet_data
-    except Exception as e:
-        print(e)
-        return []
-
 
 # get steam screenshots
 def get_steam_uploads(username):
@@ -228,20 +180,16 @@ def get_steam_uploads(username):
         return []
 
 # post image to discord
-async def post_images(username, discord_user_id, channel_id, is_steam):
+async def post_images(username, discord_user_id, channel):
     global bot, processed_posts
 
-    # search for upload discord channel
-    channel = bot.get_channel(channel_id)
-    # await channel.send('test')
-    if not channel:
-        print(f'Channel not found for ID: {channel_id}')
+    # # search for upload discord channel
+    # channel = bot.get_channel(channel_id)
+    # # await channel.send('test')
+    # if not channel:
+    #     print(f'Channel not found for ID: {channel_id}')
 
-    # get tweets for single user (video skipped, not in resulting [])
-    if is_steam:
-        posts = get_steam_uploads(username)
-    else:
-        posts = get_tweets(username)
+    posts = get_steam_uploads(username)
 
     # for each tweet
     for post in posts:
@@ -313,22 +261,6 @@ async def post_images(username, discord_user_id, channel_id, is_steam):
 
             print('sent to discord...')
 
-# check twitter once
-async def check_twitter():
-    global first_run
-
-    # for each user in config
-    for user in twitter_config["users"]:
-        print('~~~~~~~')
-        print('checking twitter... ', end='')
-        print(user)
-        username = user["twitter_username"]
-        discord_user_id = user["discord_user_id"]
-        channel_id = twitter_config['channel_id']
-
-        await post_images(username, discord_user_id, channel_id, False)
-    print('done.')
-
 # check steam once
 async def check_steam():
     global first_run
@@ -345,74 +277,68 @@ async def check_steam():
         await post_images(username, discord_user_id, channel_id, True)
     print('done.')
 
-# bot on ready
-@bot.event
-async def on_ready():
-    await bot.change_presence(status=discord.Status.online)
-    print(f'Logged in as {bot.user.name}')
+def setup():
+    global bot, tree, state
 
-    try:
-        await check_twitter()
-    except RuntimeError as e:
-        print('already running twitter task')
-    except Exception as e:
-        print(e)
-    try:
-        await check_steam()
-    except RuntimeError as e:
-        print('already running steam task')
-    except Exception as e:
-        print(e)
+    bot = bot_client()
+    tree = app_commands.CommandTree(bot)
 
-    save_processed_posts(processed_posts, pickle_path)
+    # processed posts (steam images / tweets)
+    pickle_path = 'state.pickle'
 
-    print('quitting firefox')
-    FirefoxWebDriverSingleton.quit()
+    state = {}
 
-    # kill firefox processes
-    kill_firefox_processes()
+    if os.path.exists(pickle_path):
+        print('Loaded saved state')
+        state = pickle.load(open(pickle_path, 'rb'))
+        print(state)
+    else:
+        print('no saved state found')
 
-    print('stopping bot')
-    # bye bye bot
-    await bot.close()
+    # configs for paring steam/discord users
+    with open("config-steam.json") as config_file:
+        steam_config = json.load(config_file)
 
-# Save the set to a file
-def save_processed_posts(processed_posts, file_path):
-    print('saving processed posts set')
-    with open(file_path, 'wb') as file:
-        pickle.dump(processed_posts, file)
+    guild_id = steam_config['guild_id']
+    guild = discord.Object(id = guild_id)
 
-# Load the set from a file
-def load_processed_posts(file_path):
-    try:
-        with open(file_path, 'rb') as file:
-            return pickle.load(file)
-    except FileNotFoundError:
-        return set()
+    return bot, tree, guild, steam_config['discord_token'], state
 
-# processed posts (steam images / tweets)
-pickle_path = 'processed_posts.pickle'
+bot, tree, guild, token, state = setup()
 
-first_run = True
+@tree.command(guild=guild, description='Register steam id')
+async def register(interaction, steam: str):
+    if interaction.user.id in state:
+        # remove dictionary entry
+        del state[interaction.user.id]
 
-# Check if the file exists, otherwise use an empty set
-if os.path.exists(pickle_path):
-    first_run = False
-    print('subsequent run, existing pickle - loading processed posts set')
-    print('anything found will be added to the pickle (and discord)')
-    processed_posts = load_processed_posts(pickle_path)
-else:
-    print('first run, new pickle - creating processed posts set')
-    processed_posts = set()
+    # add key interaction.user.id, value steam
+    state[interaction.user.id] = steam
 
-sleep_duration_seconds = 20
+    # save pickle 
+    with open('state.pickle', 'wb') as f:
+        pickle.dump(state, f)
 
-# configs for paring twitter/discord users
-with open("config-twitter.json") as config_file:
-    twitter_config = json.load(config_file)
+    await interaction.response.send_message(f'Registered steam id: {steam} to {interaction.user.mention}')
 
-# configs for paring steam/discord users
-with open("config-steam.json") as config_file:
-    steam_config = json.load(config_file)
+@tree.command(guild=guild, description='steam screenshots')
+async def screenshot(interaction):
 
-bot.run(twitter_config['discord_token'])
+    # if interaction.user.id in state
+    if interaction.user.id in state:
+
+        steam_id = state[interaction.user.id]
+        
+        await post_images(steam_id, interaction.user.id, interaction.channel_id)
+        
+        return
+    else:
+        # register steam id with register command
+        await interaction.response.send_message(f'Register steam id with /register command')
+
+
+@tree.command(guild = guild, description='Check bot status')
+async def test(interaction):
+    await interaction.response.send_message('Test successful!')
+
+bot.run(token)
