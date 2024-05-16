@@ -1,6 +1,6 @@
 # Screenshot Bot
 
-Screenshot Bot is a Discord bot that periodically checks specified Steam accounts or Twitter accounts for new image tweets, and posts them in a designated Discord channel.
+Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots directly within Discord channels. The bot leverages Selenium and BeautifulSoup to scrape Steam profiles and extract screenshot data, making it easier for users to share their gaming moments with their friends.
 
 ![](.img/sample1.png)
 
@@ -8,17 +8,20 @@ Screenshot Bot is a Discord bot that periodically checks specified Steam account
 
 ## Features
 
-- Monitor multiple Twitter accounts
-- Monitor multiple Steam accounts
-- Post new image tweets as messages in a Discord channel
-- Automatically restarts in case of failure
+- Register and save your Steam ID or custom URL.
+- Fetch and display the latest Steam screenshots.
+- Support for multiple users.
+- Persistent storage of user data using pickle.
 
 ## Requirements
 
-- Python 3.8+
-- Docker
-- A Discord bot token
-- Twitter account(s) to monitor
+- Python 3.7+
+- Discord.py
+- Selenium
+- BeautifulSoup
+- aiohttp
+- Requests
+- Firefox and Geckodriver
 
 ## Dependencies
 
@@ -29,77 +32,106 @@ Screenshot Bot is a Discord bot that periodically checks specified Steam account
 
 ## Setup
 
-1. Clone this repository.
+1. **Install Dependencies**
 
-2. Install the required dependencies:
+   Use `pip` to install the necessary Python libraries:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-pip install -r requirements.txt
+2. **Install Firefox and Geckodriver**
 
-3. Create a config-twitter.json and config-steam.json file in the project directory with the following structure:
+   Ensure you have Firefox installed on your system along with Geckodriver. You can download Geckodriver from [here](https://github.com/mozilla/geckodriver/releases).
 
-config-twitter.json:
-```json
-{
-  "discord_token": "your_discord_bot_token",
-  "channel_id": your_channel_id,
-  "users": [
-    {
-      "twitter_username": "example_twitter_username",
-      "discord_user_id": your_discord_user_id
-    }
-  ]
-}
-```
+3. **Configuration**
 
-config-steam.json:
-```json
-{
-    "users": [
-        {
-            "steam_username": "raylinth",
-            "discord_user_id": 11111111111111111
-        },
-        {
-            "steam_username": "Zzzzzzz",
-            "discord_user_id": 22222222222222222
-        }
-    ],
-    "discord_token": "",
-    "channel_id": 333,
-    "guild_id": 444
-}
-```
+   Create a `config-steam.json` file in the root directory of the project with the following structure:
+   ```json
+   {
+       "guild_id": "YOUR_GUILD_ID",
+       "discord_token": "YOUR_DISCORD_BOT_TOKEN",
+       "users": []
+   }
+   ```
 
-Replace your_discord_bot_token, your_channel_id, example_twitter_username, and your_discord_user_id with the appropriate values.
+4. **Run the Bot**
 
-4. Build the Docker image:
-
-```
-docker build -t screenshot-bot .
-```
-
-5. Run the Docker container:
-
-```
-docker run -d -t --name screenshot-bot screenshot-bot:latest
-```
-
-```
-docker-compose up -d screenshot-bot
-```
+   Execute the bot script:
+   ```bash
+   python screenshot_bot.py
+   ```
 
 ## Usage
 
-Once the bot is running, it will periodically check the specified Twitter accounts for new image tweets and post them in the designated Discord channel.
+### Registering Your Steam ID
 
-You can stop the bot by stopping the Docker container:
+Use the `/register` command to register your Steam ID or custom URL:
+```discord
+/register [steamID64 or custom_url]
+```
+- `steamID64`: You can look up your Steam ID at [steamid.io](https://steamid.io).
+- `custom_url`: Set a custom URL in your Steam profile settings.
 
-```
-docker stop <container_id>
+### Fetching Screenshots
+
+Use the `/screenshot` command to fetch and display your latest Steam screenshots:
+```discord
+/screenshot
 ```
 
-Replace <container_id> with the ID of the running container. You can find the container ID by running:
+### Testing with a Specific Steam ID
 
+Use the `/test` command to fetch screenshots for any Steam ID without registration:
+```discord
+/test [steamID64 or custom_url]
 ```
-docker ps
+
+### Getting Help
+
+Use the `/help` command to get a list of available commands and usage instructions:
+```discord
+/help
 ```
+
+## Code Overview
+
+### Bot Client
+
+The `bot_client` class is a custom Discord client that initializes with all necessary intents and synchronizes commands with the Discord server.
+
+### Firefox WebDriver Singleton
+
+The `FirefoxWebDriverSingleton` class ensures a single instance of Firefox WebDriver is used across the application. It includes methods to manage the browser lifecycle and clean up temporary files.
+
+### Steam Functions
+
+- `get_steam_url(username)`: Generates the Steam URL for the provided username or Steam ID.
+- `get_steam_uploads(username)`: Scrapes the Steam profile page to get the latest screenshots.
+
+### Discord Commands
+
+- `/register`: Registers a user's Steam ID.
+- `/screenshot`: Fetches and displays the user's registered Steam screenshots.
+- `/test`: Fetches screenshots for a given Steam ID without registration.
+- `/help`: Provides help and command usage information.
+
+### Persistent State
+
+The bot uses `pickle` to save and load the state, which includes registered Steam IDs for users.
+
+## Notes
+
+- Ensure the `data` directory exists for storing the state file (`state.pickle`).
+- The bot will handle and report exceptions gracefully, providing error messages in Discord where necessary.
+
+## Contributing
+
+Feel free to fork this repository and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.
+
+## License
+
+This project is licensed under the MIT License.
+
+---
+
+Happy gaming and sharing your screenshots with Screenshot Bot! 
