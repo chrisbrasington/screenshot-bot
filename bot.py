@@ -174,7 +174,7 @@ async def post_images(username, interaction, count=1, testing=False):
     mention = interaction.user.mention
     posts = get_steam_uploads(username, count)
     attachments = []
-    from_msg = f'{mention}'
+    titles = set()
 
     for post in posts:
         for img_url in post['img_urls']:
@@ -187,12 +187,8 @@ async def post_images(username, interaction, count=1, testing=False):
                     attachments.append(file)
 
                     title = post['title']
-                    if testing:
-                        from_msg = f' testing steam id ({username})'
-                    if title is not None:
-                        from_msg += f' playing {title}'
-                else:
-                    raise Exception(f"Failed to download image, status code: {response.status_code}")
+                    if title and title not in titles:
+                        titles.add(title)
 
             except Exception as e:
                 error = f'An exception occurred: {e}'
@@ -202,16 +198,24 @@ async def post_images(username, interaction, count=1, testing=False):
 
     if attachments:
         print('Responding...')
-        print(from_msg)
 
         # Reverse the order of attachments
         attachments.reverse()
+
+        # Create the from_msg string
+        title_list = list(titles)
+        print(title_list)
+        title_msg = " and ".join(title_list)
+        from_msg = f'{mention} playing {title_msg}' if title_msg else mention
+
+        print(from_msg)
 
         message = await interaction.original_response()
         await message.edit(content=from_msg, attachments=attachments)
         print('Done.')
     else:
         await interaction.followup.send(content='No images found.')
+
 
 # check steam once
 async def check_steam():
