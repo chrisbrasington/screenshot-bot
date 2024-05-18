@@ -19,8 +19,6 @@ from discord import app_commands
 class bot_client(discord.Client):
     def __init__(self):
         intents = discord.Intents.all()
-        # intents.members = True
-        # intents.message_content = True
         super().__init__(intents=intents)
         self.synced = False
 
@@ -29,7 +27,6 @@ class bot_client(discord.Client):
 
         await self.wait_until_ready()
         if not self.synced:
-
             with open("config-steam.json") as config_file:
                 steam_config = json.load(config_file)
 
@@ -37,17 +34,13 @@ class bot_client(discord.Client):
 
             print(f'Syncing commands to {guild.name}...')
 
-            # only if clear is needed and uncomment and re-run
-            # tree.clear_commands(guild = guild)
+            await tree.sync(guild=guild)
+            commands = await tree.fetch_commands(guild=guild)
 
-            await tree.sync(guild = guild)
-            commands = await tree.fetch_commands(guild = guild)
-
-            # print commands
             for command in commands:
                 print(f'Command: {command.name}')
 
-            print('Ready')        
+            print('Ready')
 
 # single instance of firefox webdriver
 class FirefoxWebDriverSingleton:
@@ -65,17 +58,15 @@ class FirefoxWebDriverSingleton:
             options = Options()
             options.add_argument('-headless')
 
-            # Create Firefox profile that deletes temporary files
             profile = FirefoxProfile()
             profile.set_preference("browser.cache.disk.enable", False)
             profile.set_preference("browser.cache.memory.enable", False)
             profile.set_preference("browser.cache.offline.enable", False)
             profile.set_preference("browser.privatebrowsing.autostart", True)
 
-            # Create Firefox webdriver instance with the profile
             cls._instance = webdriver.Firefox(options=options,firefox_profile=profile)
         return cls._instance
-    
+
     @classmethod
     def quit(cls):
         if cls._instance:
@@ -96,7 +87,7 @@ class FirefoxWebDriverSingleton:
         except Exception as ex:
             print('Error deleting /tmp, continuing')
             print(ex)
-        
+
         if not os.path.exists(dir):
             os.makedirs(dir)
 
@@ -112,28 +103,16 @@ def kill_firefox_processes():
 
 # get steam url
 def get_steam_url(username):
-    """
-    Generate the Steam URL for accessing screenshots based on the provided username or Steam ID.
-    
-    Args:
-    - username (str): The username or Steam ID
-    
-    Returns:
-    - str: The generated Steam URL
-    """
     try:
-        # Try converting the username to an integer (Steam ID)
         steam_id = int(username)
-        # If successful, construct URL with Steam ID
         steam_url = f"https://steamcommunity.com/profiles/{steam_id}/screenshots/view=grid"
     except ValueError:
-        # If conversion fails, assume it's a custom username
         steam_url = f"https://steamcommunity.com/id/{username}/screenshots/view=grid"
-    
+
     return steam_url
 
 # get steam screenshots
-def get_steam_uploads(username):
+def get_steam_uploads(username, count=1):
     page_load_wait = 0
 
     try:
@@ -142,34 +121,24 @@ def get_steam_uploads(username):
 
         browser = FirefoxWebDriverSingleton().get_instance()
 
-        # with selenium, read from firefox headless
-
         browser.get(url)
-        time.sleep(page_load_wait) # wait for page load
+        time.sleep(page_load_wait)
 
-        # parse html
         soup = BeautifulSoup(browser.page_source, 'html.parser')
         
         if not soup:
             logging.error('Failed to create BeautifulSoup object')
             return []
 
-        # filter page elements for array of tweets
         profile_media_items = soup.find_all(attrs={'class': 'profile_media_item'})
 
         steam_data = []
         i = 0
 
-        # print(f'steam screenshots: {len(profile_media_items)}')
-
         for item in profile_media_items:
-
             href = item.get('href')
 
-            # Parse the URL to get the query string
             parsed_url = urllib.parse.urlparse(href)
-
-            # Parse the query string to get the id parameter value
             query_parameters = urllib.parse.parse_qs(parsed_url.query)
             id_value = query_parameters.get('id', None)
 
@@ -178,26 +147,17 @@ def get_steam_uploads(username):
                 print("ID not found in URL")
 
             detail_page_response = browser.get(href)
-            # time.sleep(sleep_duration_seconds)
             detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
-            # Find the element with the class 'actualmediactn' and get the href attribute of the child 'a' tag
             actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
             image_link = actual_media_ctn.find('a').get('href')
 
-            # print(detail_page_soup)
-            # print(actual_media_ctn)
-            # print(image_link)
-
-            # Find the div element with class apphub_AppName and get its text
             title = detail_page_soup.find(attrs={'class': 'apphub_AppName'}).text
             print(title)
 
             steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time(), 'title': title})
 
-            # break
             i += 1
-            # print(i)
-            if i>= 1:
+            if i >= count:
                 break
 
         return steam_data
@@ -206,67 +166,54 @@ def get_steam_uploads(username):
         return []
 
 # post image to discord
-async def post_images(username, interaction, testing = False):
+async def post_images(username, interaction, count=1, testing=False):
     global bot, processed_posts
 
     await interaction.response.send_message(content='Loading...')
 
-    channel = bot.get_channel(interaction.channel_id) 
     mention = interaction.user.mention
+    posts = get_steam_uploads(username, count)
+    attachments = []
+    from_msg = f'{mention}'
 
-    posts = get_steam_uploads(username)
-
-    # for each steam images
     for post in posts:
-
-        # for each image
         for img_url in post['img_urls']:
-
             print(f'Downloading... {img_url}')
 
-            # download image            
             try:
                 response = requests.get(img_url)
                 if response.status_code == 200:
-                    
-                    # send to discord channel
                     file = discord.File(io.BytesIO(response.content), filename="image.jpg")
-                    
+                    attachments.append(file)
+
                     title = post['title']
-
-                    from_msg = f'{mention}'
-
                     if testing:
                         from_msg = f' testing steam id ({username})'
-
                     if title is not None:
                         from_msg += f' playing {title}'
+                else:
+                    raise Exception(f"Failed to download image, status code: {response.status_code}")
 
-                    print('Responding...')
-                    print(from_msg)
-
-                    message = await interaction.original_response()          
-
-                    if from_msg is not None:
-                        # 
-                        await message.edit(content=from_msg, attachments=[file])
-                        # await channel.send(from_msg, file=file)
-                    else:
-                        await channel.send(file=file)
-                    
             except Exception as e:
-                # handle the exception gracefully
                 error = f'An exception occurred: {e}'
                 print(error)
-                await message.edit(content=error)   
+                await interaction.followup.send(content=error)
+                return
 
-            print('Done.')
+    if attachments:
+        print('Responding...')
+        print(from_msg)
+
+        message = await interaction.original_response()
+        await message.edit(content=from_msg, attachments=attachments)
+        print('Done.')
+    else:
+        await interaction.followup.send(content='No images found.')
 
 # check steam once
 async def check_steam():
     global first_run
 
-    # for each user in config
     for user in steam_config["users"]:
         print('~~~~~~~')
         print('checking steam... ', end='')
@@ -283,7 +230,6 @@ def setup():
     bot = bot_client()
     tree = app_commands.CommandTree(bot)
 
-    # processed posts (steam images / tweets)
     pickle_path = 'data/state.pickle'
 
     state = {}
@@ -295,12 +241,11 @@ def setup():
     else:
         print('no saved state found')
 
-    # configs for paring steam/discord users
     with open("config-steam.json") as config_file:
         steam_config = json.load(config_file)
 
     guild_id = steam_config['guild_id']
-    guild = discord.Object(id = guild_id)
+    guild = discord.Object(id=guild_id)
 
     return bot, tree, guild, steam_config['discord_token'], state
 
@@ -309,13 +254,10 @@ bot, tree, guild, token, state = setup()
 @tree.command(guild=guild, description='Register steam id')
 async def register(interaction, steam: str):
     if interaction.user.id in state:
-        # remove dictionary entry
         del state[interaction.user.id]
 
-    # add key interaction.user.id, value steam
     state[interaction.user.id] = steam
 
-    # save pickle 
     with open('data/state.pickle', 'wb') as f:
         pickle.dump(state, f)
 
@@ -325,17 +267,11 @@ async def register(interaction, steam: str):
 
 @tree.command(guild=guild, description='steam screenshots')
 async def screenshot(interaction):
-
-    # if interaction.user.id in state
     if interaction.user.id in state:
-
         steam_id = state[interaction.user.id]
-        
         await post_images(steam_id, interaction)
-        
         return
     else:
-        # register steam id with register command
         await interaction.response.send_message(f'Register steam id with /register command')
 
 @tree.command(guild=guild, description='Test any steam id')
@@ -344,10 +280,6 @@ async def test(interaction, steam: str):
 
 @tree.command(guild=guild, description='Get help and learn about available commands.')
 async def help(interaction):
-    """
-    Get help and learn about available commands.
-    """
-
     help_message = """Hi, I'm screenshot-bot!
     
 I allow you to register your Steam ID to access your Steam screenshots directly within Discord.
@@ -357,13 +289,28 @@ Here are the available commands:
 /register [steamID64] - Lookup your steamID64: https://steamid.io
 /register [custom_url] - If you go to your steam edit profile and set a custom URL, you can use that instead of your steamID64
 /screenshot - View your registered Steam screenshots. Use this command to get a link to your latest Steam screenshot.
+/multiple [number] - View the specified number of your registered Steam screenshots.
 /help - Get help and learn about available commands.
 
 Example usage:
 /register steamID64
 /screenshot
+/multiple 3
 /help
 """
     await interaction.response.send_message(help_message)
+
+@tree.command(guild=guild, description='Get multiple steam screenshots')
+async def multiple(interaction, number: int):
+    if number > 10:
+        await interaction.response.send_message(f'The maximum number of screenshots you can request is 10.')
+        return
+
+    if interaction.user.id in state:
+        steam_id = state[interaction.user.id]
+        await post_images(steam_id, interaction, count=number)
+        return
+    else:
+        await interaction.response.send_message(f'Register steam id with /register command')
 
 bot.run(token)
