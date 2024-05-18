@@ -1,12 +1,15 @@
-Here's the updated README file with information about the `/multiple` command, including the details about the maximum number of screenshots and the order of fetching:
-
 # Screenshot Bot
 
-Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots directly within Discord channels. The bot leverages Selenium and BeautifulSoup to scrape Steam profiles and extract screenshot data, making it easier for users to share their gaming moments with their friends.
+Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots directly within Discord channels. The bot leverages Selenium to scrape Steam profiles and extract screenshot data, making it easier for users to share their gaming moments with their friends.
 
-![](.img/sample1.png)
+## Single (latest) Screenshot
+![](.img/far2.png)
 
-![](.img/sample2.png)
+![](.img/grid1.png)
+
+## Multiple screenshots
+
+![](.img/far1.png)
 
 ## Features
 
@@ -15,6 +18,47 @@ Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots 
 - Fetch multiple screenshots at once, with a limit of 10, ordered from oldest to newest.
 - Support for multiple users.
 - Persistent storage of user data using pickle.
+
+## Usage
+
+### Registering Your Steam ID
+
+Use the `/register` command to register your Steam ID or custom URL:
+```discord
+/register [steamID64 or custom_url]
+```
+- `steamID64`: You can look up your Steam ID at [steamid.io](https://steamid.io).
+- `custom_url`: Set a custom URL in your Steam profile settings.
+
+### Fetching Screenshots
+
+Use the `/screenshot` command to fetch and display your latest Steam screenshots:
+```discord
+/screenshot
+```
+
+### Fetching Multiple Screenshots
+
+Use the `/multiple` command to fetch multiple screenshots at once:
+```discord
+/multiple [number]
+```
+- Replace `[number]` with the number of screenshots you want to fetch (maximum 10).
+- Screenshots are fetched in order from oldest to newest.
+
+### Testing with a Specific Steam ID
+
+Use the `/test` command to fetch screenshots for any Steam ID without registration:
+```discord
+/test [steamID64 or custom_url]
+```
+
+### Getting Help
+
+Use the `/help` command to get a list of available commands and usage instructions:
+```discord
+/help
+```
 
 ## Requirements
 
@@ -64,47 +108,6 @@ Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots 
    python screenshot_bot.py
    ```
 
-## Usage
-
-### Registering Your Steam ID
-
-Use the `/register` command to register your Steam ID or custom URL:
-```discord
-/register [steamID64 or custom_url]
-```
-- `steamID64`: You can look up your Steam ID at [steamid.io](https://steamid.io).
-- `custom_url`: Set a custom URL in your Steam profile settings.
-
-### Fetching Screenshots
-
-Use the `/screenshot` command to fetch and display your latest Steam screenshots:
-```discord
-/screenshot
-```
-
-### Fetching Multiple Screenshots
-
-Use the `/multiple` command to fetch multiple screenshots at once:
-```discord
-/multiple [number]
-```
-- Replace `[number]` with the number of screenshots you want to fetch (maximum 10).
-- Screenshots are fetched in order from oldest to newest.
-
-### Testing with a Specific Steam ID
-
-Use the `/test` command to fetch screenshots for any Steam ID without registration:
-```discord
-/test [steamID64 or custom_url]
-```
-
-### Getting Help
-
-Use the `/help` command to get a list of available commands and usage instructions:
-```discord
-/help
-```
-
 ## Code Overview
 
 ### Bot Client
@@ -119,14 +122,6 @@ The `FirefoxWebDriverSingleton` class ensures a single instance of Firefox WebDr
 
 - `get_steam_url(username)`: Generates the Steam URL for the provided username or Steam ID.
 - `get_steam_uploads(username, count=1)`: Scrapes the Steam profile page to get the latest screenshots, with support for fetching multiple screenshots.
-
-### Discord Commands
-
-- `/register`: Registers a user's Steam ID.
-- `/screenshot`: Fetches and displays the user's registered Steam screenshots.
-- `/multiple`: Fetches and displays multiple Steam screenshots, up to a maximum of 10, in order from oldest to newest.
-- `/test`: Fetches screenshots for a given Steam ID without registration.
-- `/help`: Provides help and command usage information.
 
 ### Persistent State
 
