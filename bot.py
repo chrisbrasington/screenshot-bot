@@ -204,6 +204,9 @@ async def post_images(username, interaction, count=1, testing=False):
         print('Responding...')
         print(from_msg)
 
+        # Reverse the order of attachments
+        attachments.reverse()
+
         message = await interaction.original_response()
         await message.edit(content=from_msg, attachments=attachments)
         print('Done.')
