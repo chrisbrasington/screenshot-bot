@@ -2,6 +2,8 @@
 
 Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots directly within Discord channels. The bot leverages Selenium to scrape Steam profiles and extract screenshot data, making it easier for users to share their gaming moments with their friends.
 
+Now knows the game title of each screenshot!
+
 ## Single (latest) Screenshot
 ![](.img/far2.png)
 
