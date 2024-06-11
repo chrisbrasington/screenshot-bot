@@ -42,9 +42,9 @@ class bot_client(discord.Client):
 
             print('Ready')
 
-# single instance of firefox webdriver
 class FirefoxWebDriverSingleton:
     _instance = None
+    _profile_dir = None
 
     def __init__(self):
         if not FirefoxWebDriverSingleton._instance:
@@ -64,32 +64,36 @@ class FirefoxWebDriverSingleton:
             profile.set_preference("browser.cache.offline.enable", False)
             profile.set_preference("browser.privatebrowsing.autostart", True)
 
-            cls._instance = webdriver.Firefox(options=options,firefox_profile=profile)
+            # Create a temporary directory for the profile
+            cls._profile_dir = profile.path
+
+            cls._instance = webdriver.Firefox(options=options, firefox_profile=profile)
         return cls._instance
 
     @classmethod
     def quit(cls):
         if cls._instance:
-            print('Quitting Firefox WebDriver instance')
-            cls._instance.service.stop()
-            cls._instance.quit()
-            cls._instance = None
-            time.sleep(5)
-            cls.delete_temporary_folder()
+            try:
+                print('Quitting Firefox WebDriver instance')
+                cls._instance.quit()
+            except Exception as ex:
+                print(f'Error quitting Firefox WebDriver: {ex}')
+            finally:
+                cls._instance = None
+                time.sleep(5)
+                cls.delete_temporary_folder()
 
     @classmethod
     def delete_temporary_folder(cls):
-        dir = '/tmp'
-        try:
-            print('Deleting temporary folder')
-            if os.path.exists(dir):
-                shutil.rmtree(dir)
-        except Exception as ex:
-            print('Error deleting /tmp, continuing')
-            print(ex)
-
-        if not os.path.exists(dir):
-            os.makedirs(dir)
+        if cls._profile_dir and os.path.exists(cls._profile_dir):
+            try:
+                print(f'Deleting temporary profile folder: {cls._profile_dir}')
+                shutil.rmtree(cls._profile_dir)
+            except Exception as ex:
+                print(f'Error deleting {cls._profile_dir}, continuing')
+                print(ex)
+            finally:
+                cls._profile_dir = None
 
 def kill_firefox_processes():
     result = subprocess.run(["pkill", "-f", "firefox-esr"], capture_output=True, text=True)
@@ -146,14 +150,14 @@ def get_steam_uploads(username, count=1):
                 id_value = 'unknown'
                 print("ID not found in URL")
 
-            print(f'link: {href}')
+            
             detail_page_response = browser.get(href)
             detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
             actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
             image_link = actual_media_ctn.find('a').get('href')
 
             title = detail_page_soup.select_one('div.screenshotAppName > a').text
-            print(title)
+            print(f'{href} - {title}')
 
             a_tag = detail_page_soup.select_one('div.screenshotAppName > a')
             full_url = a_tag['href']
@@ -185,8 +189,6 @@ async def post_images(username, interaction, count=1, testing=False):
     attachments = []
     titles = set()
     apps = set()
-
-    print(testing)
 
     for post in posts:
         for img_url in post['img_urls']:
