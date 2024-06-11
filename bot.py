@@ -56,7 +56,7 @@ class FirefoxWebDriverSingleton:
     def get_instance(cls):
         if not cls._instance:
             options = Options()
-            options.add_argument('-headless')
+            # options.add_argument('-headless')
 
             profile = FirefoxProfile()
             profile.set_preference("browser.cache.disk.enable", False)
@@ -146,15 +146,24 @@ def get_steam_uploads(username, count=1):
                 id_value = 'unknown'
                 print("ID not found in URL")
 
+            print(f'link: {href}')
             detail_page_response = browser.get(href)
             detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
             actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
             image_link = actual_media_ctn.find('a').get('href')
 
-            title = detail_page_soup.find(attrs={'class': 'apphub_AppName'}).text
+            title = detail_page_soup.select_one('div.screenshotAppName > a').text
             print(title)
 
-            steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time(), 'title': title})
+            a_tag = detail_page_soup.select_one('div.screenshotAppName > a')
+            full_url = a_tag['href']
+            
+            # Remove '/screenshots/' from the URL
+            base_url = full_url.rsplit('/screenshots/', 1)[0]
+            print(base_url)
+
+            steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time(), 
+                               'title': title, 'app_url': base_url})
 
             i += 1
             if i >= count:
@@ -175,6 +184,9 @@ async def post_images(username, interaction, count=1, testing=False):
     posts = get_steam_uploads(username, count)
     attachments = []
     titles = set()
+    apps = set()
+
+    print(testing)
 
     for post in posts:
         for img_url in post['img_urls']:
@@ -189,6 +201,7 @@ async def post_images(username, interaction, count=1, testing=False):
                     title = post['title']
                     if title and title not in titles:
                         titles.add(title)
+                        apps.add(f"[{title}]({post['app_url']})")
 
             except Exception as e:
                 error = f'An exception occurred: {e}'
@@ -206,15 +219,25 @@ async def post_images(username, interaction, count=1, testing=False):
         title_list = list(titles)
         print(title_list)
         title_msg = " and ".join(title_list)
-        from_msg = f'{mention} playing {title_msg}' if title_msg else mention
+
+        if testing:
+            print('Testing...')
+            from_msg = f'{title_msg}' if title_msg else mention
+        else:
+            from_msg = f'{mention} playing {title_msg}' if title_msg else mention
 
         print(from_msg)
+        # title=f"Steam Screenshots"
+        embed = discord.Embed(description=f"From {', '.join(apps)}")
 
         message = await interaction.original_response()
-        await message.edit(content=from_msg, attachments=attachments)
+        await message.edit(content=from_msg, attachments=attachments, embed=embed)
         print('Done.')
     else:
         await interaction.followup.send(content='No images found.')
+
+    # Quit the Firefox WebDriver instance
+    FirefoxWebDriverSingleton.quit()
 
 
 # check steam once
@@ -283,7 +306,7 @@ async def screenshot(interaction):
 
 @tree.command(guild=guild, description='Test any steam id')
 async def test(interaction, steam: str):
-    await post_images(steam, interaction, True)
+    await post_images(steam, interaction, 1, True)
 
 @tree.command(guild=guild, description='Get help and learn about available commands.')
 async def help(interaction):
