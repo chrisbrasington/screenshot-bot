@@ -2,15 +2,13 @@
 import json, pickle, os, logging
 import asyncio, aiohttp
 import discord, requests
-import time, sys, io, re, time, urllib.parse
-import urllib.parse
+import time, sys, io, re, urllib.parse
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 import subprocess
-from urllib.parse import urlparse, parse_qs, urlunparse
 import glob, shutil
 import datetime
 from discord import app_commands
@@ -117,7 +115,7 @@ def get_steam_url(username):
 
 # get steam screenshots
 def get_steam_uploads(username, count=1):
-    page_load_wait = 0
+    page_load_wait = 5  # Increased for potential dynamic content loading
 
     try:
         url = get_steam_url(username)
@@ -142,6 +140,9 @@ def get_steam_uploads(username, count=1):
         for item in profile_media_items:
             href = item.get('href')
 
+            if not href:
+                continue
+
             parsed_url = urllib.parse.urlparse(href)
             query_parameters = urllib.parse.parse_qs(parsed_url.query)
             id_value = query_parameters.get('id', None)
@@ -150,8 +151,10 @@ def get_steam_uploads(username, count=1):
                 id_value = 'unknown'
                 print("ID not found in URL")
 
-            
-            detail_page_response = browser.get(href)
+            # Check for spoiler within the profile_media_item
+            spoiler = bool(item.find('div', class_='image_wall_spoiler_cover'))
+
+            browser.get(href)
             detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
             actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
             image_link = actual_media_ctn.find('a').get('href')
@@ -167,7 +170,7 @@ def get_steam_uploads(username, count=1):
             print(base_url)
 
             steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time(), 
-                               'title': title, 'app_url': base_url})
+                               'title': title, 'app_url': base_url, 'spoiler': spoiler})
 
             i += 1
             if i >= count:
@@ -197,7 +200,7 @@ async def post_images(username, interaction, count=1, testing=False):
             try:
                 response = requests.get(img_url)
                 if response.status_code == 200:
-                    file = discord.File(io.BytesIO(response.content), filename="image.jpg")
+                    file = discord.File(io.BytesIO(response.content), filename="image.jpg", spoiler=post.get('spoiler', False))
                     attachments.append(file)
 
                     title = post['title']
@@ -240,7 +243,6 @@ async def post_images(username, interaction, count=1, testing=False):
 
     # Quit the Firefox WebDriver instance
     FirefoxWebDriverSingleton.quit()
-
 
 # check steam once
 async def check_steam():
@@ -344,5 +346,16 @@ async def multiple(interaction, number: int):
         return
     else:
         await interaction.response.send_message(f'Register steam id with /register command')
+
+@tree.command(guild=guild, description='Show your registered Steam profile')
+async def whoami(interaction):
+    if interaction.user.id in state:
+        steam_id = state[interaction.user.id]
+        steam_url = get_steam_url(steam_id)
+        response = f'Your registered Steam profile: {steam_url}'
+    else:
+        response = f'You have not registered a Steam ID. Use `/register [steamID64 or custom URL]` to register your Steam ID.'
+
+    await interaction.response.send_message(response)
 
 bot.run(token)
