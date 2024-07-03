@@ -233,7 +233,7 @@ async def post_images(username, interaction, count=1, testing=False):
 
         print(from_msg)
         # title=f"Steam Screenshots"
-        embed = discord.Embed(description=f"From {', '.join(apps)}")
+        embed = discord.Embed(description=f"{', '.join(apps)}")
 
         message = await interaction.original_response()
         await message.edit(content=from_msg, attachments=attachments, embed=embed)
