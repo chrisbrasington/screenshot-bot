@@ -8,6 +8,9 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import subprocess
 import glob, shutil
 import datetime
@@ -33,6 +36,9 @@ class bot_client(discord.Client):
             print(f'Syncing commands to {guild.name}...')
 
             await tree.sync(guild=guild)
+
+            await tree.sync(guild=None)
+
             commands = await tree.fetch_commands(guild=guild)
 
             for command in commands:
@@ -115,7 +121,7 @@ def get_steam_url(username):
 
 # get steam screenshots
 def get_steam_uploads(username, count=1):
-    page_load_wait = 5  # Increased for potential dynamic content loading
+    page_load_wait = 10  # max wait time for page load in seconds
 
     try:
         url = get_steam_url(username)
@@ -124,7 +130,10 @@ def get_steam_uploads(username, count=1):
         browser = FirefoxWebDriverSingleton().get_instance()
 
         browser.get(url)
-        time.sleep(page_load_wait)
+
+        WebDriverWait(browser, page_load_wait).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, 'profile_media_item'))
+        )
 
         soup = BeautifulSoup(browser.page_source, 'html.parser')
         
@@ -182,7 +191,7 @@ def get_steam_uploads(username, count=1):
         return []
 
 # post image to discord
-async def post_images(username, interaction, count=1, testing=False):
+async def post_images(username, interaction, count=1, testing=False, comment=''):
     global bot, processed_posts
 
     await interaction.response.send_message(content='Loading...')
@@ -230,6 +239,12 @@ async def post_images(username, interaction, count=1, testing=False):
             from_msg = f'{title_msg}' if title_msg else mention
         else:
             from_msg = f'{mention} playing {title_msg}' if title_msg else mention
+
+        # print comment to console
+        print('Comment:', comment)
+
+        if(not testing and comment != ''):
+            from_msg = f'> {comment}\n says {mention} while playing {title_msg}' 
 
         print(from_msg)
         # title=f"Steam Screenshots"
@@ -300,10 +315,10 @@ async def register(interaction, steam: str):
     await interaction.response.send_message(response)
 
 @tree.command(guild=guild, description='steam screenshots')
-async def screenshot(interaction):
+async def screenshot(interaction, comment: str = ''):
     if interaction.user.id in state:
         steam_id = state[interaction.user.id]
-        await post_images(steam_id, interaction)
+        await post_images(steam_id, interaction, 1, False, comment=comment)
         return
     else:
         await interaction.response.send_message(f'Register steam id with /register command')
