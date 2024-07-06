@@ -337,8 +337,9 @@ Here are the available commands:
 
 /register [steamID64] - Lookup your steamID64: https://steamid.io
 /register [custom_url] - If you go to your steam edit profile and set a custom URL, you can use that instead of your steamID64
-/screenshot - View your registered Steam screenshots. Use this command to get a link to your latest Steam screenshot.
+/screenshot [comment: optional] - View your registered Steam screenshots. Use this command to get a link to your latest Steam screenshot. Optional comment.
 /multiple [number] - View the specified number of your registered Steam screenshots.
+/get [url] - Get a single Steam screenshot from a Steam Community URL.
 /help - Get help and learn about available commands.
 
 Example usage:
@@ -372,5 +373,65 @@ async def whoami(interaction):
         response = f'You have not registered a Steam ID. Use `/register [steamID64 or custom URL]` to register your Steam ID.'
 
     await interaction.response.send_message(response)
+
+@tree.command(guild=guild, description='Get a single Steam screenshot from URL')
+async def get(interaction, url: str):
+    if 'steamcommunity.com' not in url:
+        await interaction.response.send_message('Invalid URL. Please provide a valid Steam Community URL.')
+        return
+    
+    # loading..
+    await interaction.response.send_message('Loading...')
+
+    try:
+        browser = FirefoxWebDriverSingleton().get_instance()
+        browser.get(url)
+
+        # Wait for the breadcrumbs to load
+        WebDriverWait(browser, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'breadcrumbs'))
+        )
+
+        soup = BeautifulSoup(browser.page_source, 'html.parser')
+        breadcrumbs = soup.find('div', class_='breadcrumbs')
+        if not breadcrumbs:
+            await interaction.response.send_message('Failed to find breadcrumbs on the provided URL.')
+            return
+
+        # Extract username and game title from breadcrumbs
+        username = breadcrumbs.find_all('a')[-1].text.strip()
+        # remove "'s Screenshots" from the username
+        username = re.sub(r"'s Screenshots", "", username)
+
+        game_title = breadcrumbs.find_all('a')[-3].text.strip()
+
+        # Fetch the image URL
+        actual_media_ctn = soup.find('div', class_='actualmediactn')
+        if not actual_media_ctn:
+            await interaction.response.send_message('Failed to find image on the provided URL.')
+            return
+
+        img_tag = actual_media_ctn.find('img', class_='screenshotEnlargeable')
+        if not img_tag:
+            await interaction.response.send_message('Failed to find image tag on the provided URL.')
+            return
+
+        img_url = img_tag['src']
+
+        response = requests.get(img_url)
+        if response.status_code == 200:
+            file = discord.File(io.BytesIO(response.content), filename="image.jpg")
+            embed = discord.Embed()
+            embed.set_image(url=f"attachment://image.jpg")
+
+            message = await interaction.original_response()
+            
+            await message.edit(content=f"{username} playing {game_title}", attachments=[file], embed=embed)
+        else:
+            await interaction.response.send_message('Failed to fetch image from the provided URL.')
+    except Exception as e:
+        await interaction.response.send_message(f'An error occurred: {str(e)}')
+    finally:
+        FirefoxWebDriverSingleton.quit()
 
 bot.run(token)
