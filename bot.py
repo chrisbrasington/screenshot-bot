@@ -191,7 +191,7 @@ def get_steam_uploads(username, count=1):
         return []
 
 # post image to discord
-async def post_images(username, interaction, count=1, testing=False, comment=''):
+async def post_images(username, interaction, count=1, testing=False, comment='', reverse=False):
     global bot, processed_posts
 
     await interaction.response.send_message(content='Loading...')
@@ -227,7 +227,8 @@ async def post_images(username, interaction, count=1, testing=False, comment='')
         print('Responding...')
 
         # Reverse the order of attachments
-        attachments.reverse()
+        if reverse:
+            attachments.reverse()
 
         # Create the from_msg string
         title_list = list(titles)
@@ -351,14 +352,15 @@ Example usage:
     await interaction.response.send_message(help_message)
 
 @tree.command(guild=guild, description='Get multiple steam screenshots')
-async def multiple(interaction, number: int):
+async def multiple(interaction, number: int, reverse: bool = False):
     if number > 10:
         await interaction.response.send_message(f'The maximum number of screenshots you can request is 10.')
         return
 
     if interaction.user.id in state:
         steam_id = state[interaction.user.id]
-        await post_images(steam_id, interaction, count=number)
+        await post_images(steam_id, interaction, count=number, testing=False, comment='', reverse=reverse)
+
         return
     else:
         await interaction.response.send_message(f'Register steam id with /register command')
