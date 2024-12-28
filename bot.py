@@ -197,7 +197,7 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
     # do opposite interpretation (reverse by default), aka chronilogical order
     reverse = not bool(reverse)
 
-    await interaction.response.defer(ephemeral=True, thinking=True)
+    await interaction.response.defer(ephemeral=False, thinking=True)
 
     mention = interaction.user.mention
     posts = get_steam_uploads(username, count)
@@ -254,7 +254,7 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
         # title=f"Steam Screenshots"
         embed = discord.Embed(description=f"{', '.join(apps)}")
 
-        await interaction.edit_original_response(content=f'Uploading...')
+        # await interaction.edit_original_response(content=f'Uploading...')
         await interaction.followup.send(content=from_msg, files=attachments, embed=embed)
         print('Done.')
     else:
