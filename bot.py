@@ -254,7 +254,6 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
         # title=f"Steam Screenshots"
         embed = discord.Embed(description=f"{', '.join(apps)}")
 
-        # await interaction.edit_original_response(content=f'Uploading...')
         await interaction.channel.send(content=from_msg, files=attachments, embed=embed)
         await interaction.delete_original_response()
         print('Done.')
