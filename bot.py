@@ -197,7 +197,7 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
     # do opposite interpretation (reverse by default), aka chronilogical order
     reverse = not bool(reverse)
 
-    await interaction.response.defer(ephemeral=True, thinking=True)
+    await interaction.response.defer(ephemeral=False, thinking=True)
 
     mention = interaction.user.mention
     posts = get_steam_uploads(username, count)
@@ -223,7 +223,7 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
             except Exception as e:
                 error = f'An exception occurred: {e}'
                 print(error)
-                await interaction.followup.send(content=error, ephemeral=True)
+                await interaction.followup.send(content=error)
                 return
 
     if attachments:
@@ -255,10 +255,10 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
         embed = discord.Embed(description=f"{', '.join(apps)}")
 
         # await interaction.edit_original_response(content=f'Uploading...')
-        await interaction.followup.send(content=from_msg, files=attachments, embed=embed, ephemeral=False)
+        await interaction.followup.send(content=from_msg, files=attachments, embed=embed)
         print('Done.')
     else:
-        await interaction.followup.send(content='No images found.', ephemeral=True)
+        await interaction.followup.send(content='No images found.')
 
     # Quit the Firefox WebDriver instance
     FirefoxWebDriverSingleton.quit()
