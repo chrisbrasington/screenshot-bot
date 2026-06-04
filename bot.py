@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, pickle, os, logging
+import pickle, os, logging
 import asyncio, aiohttp
 import discord, requests
 import time, sys, io, re, urllib.parse
@@ -28,10 +28,7 @@ class bot_client(discord.Client):
 
         await self.wait_until_ready()
         if not self.synced:
-            with open("config-steam.json") as config_file:
-                steam_config = json.load(config_file)
-
-            guild = self.get_guild(steam_config['guild_id'])
+            guild = self.get_guild(int(os.environ['GUILD_ID']))
 
             print(f'Syncing commands to {guild.name}...')
 
@@ -294,13 +291,10 @@ def setup():
     else:
         print('no saved state found')
 
-    with open("config-steam.json") as config_file:
-        steam_config = json.load(config_file)
-
-    guild_id = steam_config['guild_id']
+    guild_id = int(os.environ['GUILD_ID'])
     guild = discord.Object(id=guild_id)
 
-    return bot, tree, guild, steam_config['discord_token'], state
+    return bot, tree, guild, os.environ['DISCORD_TOKEN'], state
 
 bot, tree, guild, token, state = setup()
 

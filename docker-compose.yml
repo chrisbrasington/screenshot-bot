@@ -1,9 +1,13 @@
-version: '3'
-
 services:
   screenshot-bot:
-    image: screenshot-bot:latest
+    build: .
     container_name: screenshot-bot
+    restart: always
+    env_file: .env
     volumes:
       - ./data:/app/data
-    restart: always
+    labels:
+      homepage.group: Bots
+      homepage.name: Screenshot Bot
+      homepage.icon: mdi-camera
+      homepage.description: Discord

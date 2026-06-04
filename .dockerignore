@@ -1,0 +1,6 @@
+.env
+config-steam.json
+__pycache__
+geckodriver.log
+deploy
+dev
