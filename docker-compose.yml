@@ -1,6 +1,7 @@
 services:
   screenshot-bot:
     build: .
+    image: valhalla:5000/screenshot-bot:latest
     container_name: screenshot-bot
     restart: always
     env_file: .env
