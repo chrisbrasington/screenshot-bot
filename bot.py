@@ -15,6 +15,7 @@ import subprocess
 import glob, shutil
 import datetime
 from discord import app_commands
+from steam_download import FirefoxWebDriverSingleton, get_steam_url, fetch_screenshots
 
 # Configure Discord bot
 class bot_client(discord.Client):
@@ -43,153 +44,9 @@ class bot_client(discord.Client):
 
             print('Ready')
 
-class FirefoxWebDriverSingleton:
-    _instance = None
-    _profile_dir = None
-
-    def __init__(self):
-        if not FirefoxWebDriverSingleton._instance:
-            print("Creating new instance of Firefox WebDriver")
-        else:
-            print("Using existing instance of Firefox WebDriver")
-
-    @classmethod
-    def get_instance(cls):
-        if not cls._instance:
-            options = Options()
-            # options.add_argument('-headless')
-
-            profile = FirefoxProfile()
-            profile.set_preference("browser.cache.disk.enable", False)
-            profile.set_preference("browser.cache.memory.enable", False)
-            profile.set_preference("browser.cache.offline.enable", False)
-            profile.set_preference("browser.privatebrowsing.autostart", True)
-
-            # Create a temporary directory for the profile
-            cls._profile_dir = profile.path
-
-            cls._instance = webdriver.Firefox(options=options, firefox_profile=profile)
-        return cls._instance
-
-    @classmethod
-    def quit(cls):
-        if cls._instance:
-            try:
-                print('Quitting Firefox WebDriver instance')
-                cls._instance.quit()
-            except Exception as ex:
-                print(f'Error quitting Firefox WebDriver: {ex}')
-            finally:
-                cls._instance = None
-                time.sleep(5)
-                cls.delete_temporary_folder()
-
-    @classmethod
-    def delete_temporary_folder(cls):
-        if cls._profile_dir and os.path.exists(cls._profile_dir):
-            try:
-                print(f'Deleting temporary profile folder: {cls._profile_dir}')
-                shutil.rmtree(cls._profile_dir)
-            except Exception as ex:
-                print(f'Error deleting {cls._profile_dir}, continuing')
-                print(ex)
-            finally:
-                cls._profile_dir = None
-
-def kill_firefox_processes():
-    result = subprocess.run(["pkill", "-f", "firefox-esr"], capture_output=True, text=True)
-
-    if result.returncode == 0:
-        print("Firefox processes terminated.")
-    elif result.returncode == 1:
-        print("No matching Firefox processes found.")
-    else:
-        print(f"Error occurred while terminating Firefox processes: {result.stderr}")
-
-# get steam url
-def get_steam_url(username):
-    try:
-        steam_id = int(username)
-        steam_url = f"https://steamcommunity.com/profiles/{steam_id}/screenshots/view=grid"
-    except ValueError:
-        steam_url = f"https://steamcommunity.com/id/{username}/screenshots/view=grid"
-
-    return steam_url
-
-# get steam screenshots
-def get_steam_uploads(username, count=1):
-    page_load_wait = 10  # max wait time for page load in seconds
-
-    try:
-        url = get_steam_url(username)
-        print(url)
-
-        browser = FirefoxWebDriverSingleton().get_instance()
-
-        browser.get(url)
-
-        WebDriverWait(browser, page_load_wait).until(
-            EC.presence_of_all_elements_located((By.CLASS_NAME, 'profile_media_item'))
-        )
-
-        soup = BeautifulSoup(browser.page_source, 'html.parser')
-        
-        if not soup:
-            logging.error('Failed to create BeautifulSoup object')
-            return []
-
-        profile_media_items = soup.find_all(attrs={'class': 'profile_media_item'})
-
-        steam_data = []
-        i = 0
-
-        for item in profile_media_items:
-            href = item.get('href')
-
-            if not href:
-                continue
-
-            parsed_url = urllib.parse.urlparse(href)
-            query_parameters = urllib.parse.parse_qs(parsed_url.query)
-            id_value = query_parameters.get('id', None)
-
-            if not id_value:
-                id_value = 'unknown'
-                print("ID not found in URL")
-
-            # Check for spoiler within the profile_media_item
-            spoiler = bool(item.find('div', class_='image_wall_spoiler_cover'))
-
-            browser.get(href)
-            detail_page_soup = BeautifulSoup(browser.page_source, "html.parser")
-            actual_media_ctn = detail_page_soup.find(attrs={'class': 'actualmediactn'})
-            image_link = actual_media_ctn.find('a').get('href')
-
-            title = detail_page_soup.select_one('div.screenshotAppName > a').text
-            print(f'{href} - {title}')
-
-            a_tag = detail_page_soup.select_one('div.screenshotAppName > a')
-            full_url = a_tag['href']
-            
-            # Remove '/screenshots/' from the URL
-            base_url = full_url.rsplit('/screenshots/', 1)[0]
-            print(base_url)
-
-            steam_data.append({'id': id_value[0], 'img_urls': [image_link], 'timestamp': time.time(), 
-                               'title': title, 'app_url': base_url, 'spoiler': spoiler})
-
-            i += 1
-            if i >= count:
-                break
-
-        return steam_data
-    except Exception as e:
-        print(e)
-        return []
-
 # post image to discord
 async def post_images(username, interaction, count=1, testing=False, comment='', reverse=False):
-    global bot, processed_posts
+    global bot, processed_posts, last_message
 
     # do opposite interpretation (reverse by default), aka chronilogical order
     reverse = not bool(reverse)
@@ -197,31 +54,29 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
     await interaction.response.defer(ephemeral=True, thinking=True)
 
     mention = interaction.user.mention
-    posts = get_steam_uploads(username, count)
+
+    try:
+        loop = asyncio.get_running_loop()
+        posts, method = await loop.run_in_executor(None, fetch_screenshots, username, count)
+    except Exception as e:
+        error = f'An exception occurred: {e}'
+        print(error)
+        await interaction.followup.send(content=error, ephemeral=True)
+        return
+
     attachments = []
     titles = set()
     apps = set()
 
     for post in posts:
-        for img_url in post['img_urls']:
-            print(f'Downloading... {img_url}')
+        for data in post['data']:
+            file = discord.File(io.BytesIO(data), filename="image.jpg", spoiler=post.get('spoiler', False))
+            attachments.append(file)
 
-            try:
-                response = requests.get(img_url)
-                if response.status_code == 200:
-                    file = discord.File(io.BytesIO(response.content), filename="image.jpg", spoiler=post.get('spoiler', False))
-                    attachments.append(file)
-
-                    title = post['title']
-                    if title and title not in titles:
-                        titles.add(title)
-                        apps.add(f"[{title}]({post['app_url']})")
-
-            except Exception as e:
-                error = f'An exception occurred: {e}'
-                print(error)
-                await interaction.followup.send(content=error, ephemeral=True)
-                return
+            title = post['title']
+            if title and title not in titles:
+                titles.add(title)
+                apps.add(f"[{title}]({post['app_url']})")
 
     if attachments:
         print('Responding...')
@@ -251,14 +106,11 @@ async def post_images(username, interaction, count=1, testing=False, comment='',
         # title=f"Steam Screenshots"
         embed = discord.Embed(description=f"{', '.join(apps)}")
 
-        await interaction.channel.send(content=from_msg, files=attachments, embed=embed)
+        last_message = await interaction.channel.send(content=from_msg, files=attachments, embed=embed)
         await interaction.delete_original_response()
         print('Done.')
     else:
         await interaction.followup.send(content='No images found.', ephemeral=True)
-
-    # Quit the Firefox WebDriver instance
-    FirefoxWebDriverSingleton.quit()
 
 # check steam once
 async def check_steam():
@@ -297,6 +149,9 @@ def setup():
     return bot, tree, guild, os.environ['DISCORD_TOKEN'], state
 
 bot, tree, guild, token, state = setup()
+
+# last screenshot message posted, for /undo
+last_message = None
 
 @tree.command(guild=guild, description='Register steam id')
 async def register(interaction, steam: str):
@@ -338,6 +193,8 @@ Here are the available commands:
 /screenshot [comment: optional] - View your registered Steam screenshots. Use this command to get a link to your latest Steam screenshot. Optional comment.
 /multiple [number] - View the specified number of your registered Steam screenshots.
 /get [url] - Get a single Steam screenshot from a Steam Community URL.
+/delete [message_id] - Delete one of my messages in this channel.
+/undo - Delete the last screenshot message I posted.
 /help - Get help and learn about available commands.
 
 Example usage:
@@ -372,6 +229,47 @@ async def whoami(interaction):
         response = f'You have not registered a Steam ID. Use `/register [steamID64 or custom URL]` to register your Steam ID.'
 
     await interaction.response.send_message(response)
+
+@tree.command(guild=guild, description='Delete a bot message by ID')
+async def delete(interaction, message_id: str):
+    try:
+        message_id = int(message_id)
+    except ValueError:
+        await interaction.response.send_message('Invalid message ID.', ephemeral=True)
+        return
+
+    try:
+        message = await interaction.channel.fetch_message(message_id)
+    except discord.NotFound:
+        await interaction.response.send_message('Message not found in this channel.', ephemeral=True)
+        return
+
+    if message.author.id != bot.user.id:
+        await interaction.response.send_message('I can only delete my own messages.', ephemeral=True)
+        return
+
+    await message.delete()
+    print(f'Deleted message {message_id} for {interaction.user}')
+    await interaction.response.send_message('Message deleted.', ephemeral=True)
+
+@tree.command(guild=guild, description='Delete the last screenshot message posted')
+async def undo(interaction):
+    global last_message
+
+    if last_message is None:
+        await interaction.response.send_message('Nothing to undo.', ephemeral=True)
+        return
+
+    message, last_message = last_message, None
+
+    try:
+        await message.delete()
+    except discord.NotFound:
+        await interaction.response.send_message('That message was already deleted.', ephemeral=True)
+        return
+
+    print(f'Undo: deleted message {message.id} for {interaction.user}')
+    await interaction.response.send_message('Last message deleted.', ephemeral=True)
 
 @tree.command(guild=guild, description='Get a single Steam screenshot from URL')
 async def get(interaction, url: str):

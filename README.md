@@ -1,6 +1,6 @@
 # Screenshot Bot
 
-Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots directly within Discord channels. The bot leverages Selenium to scrape Steam profiles and extract screenshot data, making it easier for users to share their gaming moments with their friends.
+Screenshot Bot is a Discord bot designed to fetch and display Steam screenshots directly within Discord channels. The bot gets screenshot data from the Steam Web API, and falls back to scraping Steam profiles with Selenium if the API fails, making it easier for users to share their gaming moments with their friends.
 
 Now knows the game title of each screenshot!
 
@@ -54,6 +54,23 @@ Use the `/test` command to fetch screenshots for any Steam ID without registrati
 ```discord
 /test [steamID64 or custom_url]
 ```
+
+### Deleting a Bot Message
+
+Use the `/delete` command to remove one of the bot's messages in the current channel:
+```discord
+/delete [message_id]
+```
+- Right-click a message and choose "Copy Message ID" (requires Developer Mode in Discord settings).
+- The bot only deletes messages it wrote.
+
+### Undoing the Last Screenshot
+
+Use the `/undo` command to delete the last screenshot message the bot posted:
+```discord
+/undo
+```
+- A second `/undo` does nothing. Only the most recent message is tracked, and the bot forgets it on restart.
 
 ### Getting Help
 
@@ -120,10 +137,29 @@ The `bot_client` class is a custom Discord client that initializes with all nece
 
 The `FirefoxWebDriverSingleton` class ensures a single instance of Firefox WebDriver is used across the application. It includes methods to manage the browser lifecycle and clean up temporary files.
 
-### Steam Functions
+### Steam Functions (`steam_download.py`)
 
+- `fetch_screenshots(username, count=1)`: Entry point. Tries the Steam Web API first, falls back to Selenium on any failure, and returns the posts with image bytes plus the method used (`'api'` or `'browser'`).
+- `get_latest_via_api(username, count=1)`: Gets the newest screenshots from `IPublishedFileService/GetUserFiles`. Needs `STEAM_API_KEY`.
 - `get_steam_url(username)`: Generates the Steam URL for the provided username or Steam ID.
-- `get_steam_uploads(username, count=1)`: Scrapes the Steam profile page to get the latest screenshots, with support for fetching multiple screenshots.
+- `get_steam_uploads(username, count=1)`: Scrapes the Steam profile page with Selenium. Used as the fallback.
+
+## Tests
+
+Tests cover downloading only, not Discord.
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+
+# offline tests (mocked, always safe to run)
+python -m pytest -m "not live"
+
+# live tests against real Steam: 1 and 3 images via the API, plus 3 via the Selenium fallback
+set -a; . ./.env; set +a
+TEST_STEAM_ID=<steamID64 or custom_url> python -m pytest -m live -s
+```
+
+Live tests skip unless `TEST_STEAM_ID` and `STEAM_API_KEY` are set. The fallback test needs Firefox and Geckodriver.
 
 ### Persistent State
 
